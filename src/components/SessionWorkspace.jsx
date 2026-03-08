@@ -315,7 +315,7 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
 
                     <label className="mt5-list-item" style={{ cursor: 'pointer', display: 'block' }}>
                         📥 Importar Histórico CSV
-                        <input type="file" accept=".csv" onChange={handleImportCSV} style={{ display: 'none' }} />
+                        <input type="file" accept=".csv,text/csv,text/plain" onChange={handleImportCSV} style={{ display: 'none' }} />
                     </label>
 
                     <div className="mt5-list-item">
