@@ -1,0 +1,215 @@
+.session-manager-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #0d1117;
+    color: #c9d1d9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.session-manager-container {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px;
+    padding: 30px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.session-manager-header {
+    border-bottom: 1px solid #30363d;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+.session-manager-header h2 {
+    margin: 0;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.new-session-btn {
+    background-color: #238636;
+    color: #ffffff;
+    border: 1px solid rgba(240, 246, 252, 0.1);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.new-session-btn:hover {
+    background-color: #2ea043;
+}
+
+.sessions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.session-card {
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 15px;
+    cursor: pointer;
+    transition: 0.2s;
+    position: relative;
+}
+
+.session-card:hover {
+    border-color: #8b949e;
+}
+
+.session-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.session-card h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #58a6ff;
+}
+
+.delete-session-btn {
+    background: none;
+    border: none;
+    color: #f85149;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0 5px;
+}
+
+.delete-session-btn:hover {
+    color: #ff7b72;
+}
+
+.session-details {
+    font-size: 0.9rem;
+    color: #8b949e;
+    line-height: 1.5;
+}
+
+.pair-badge {
+    display: inline-block;
+    background-color: #21262d;
+    border: 1px solid #30363d;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    margin-right: 5px;
+    margin-top: 5px;
+    color: #c9d1d9;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    padding: 25px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #c9d1d9;
+}
+
+.form-input {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    color: #c9d1d9;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+}
+
+.pairs-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    background-color: #0d1117;
+    padding: 15px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.pair-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    width: calc(33% - 10px);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.btn-cancel {
+    background-color: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-cancel:hover {
+    background-color: #30363d;
+}
+
+.btn-create {
+    background-color: #238636;
+    color: #ffffff;
+    border: 1px solid rgba(240, 246, 252, 0.1);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-create:hover {
+    background-color: #2ea043;
+}

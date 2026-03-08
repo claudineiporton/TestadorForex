@@ -1,0 +1,373 @@
+:root {
+  --bg-color: #0d1117;
+  --panel-color: #161b22;
+  --border-color: #30363d;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --accent-color: #58a6ff;
+  --success-color: #3fb950;
+  --error-color: #f85149;
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  font-family: var(--font-main);
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-color);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  /* Default for desktop to prevent scrollbars */
+  display: flex;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+.app-container {
+  display: grid;
+  grid-template-areas:
+    "header header"
+    "sidebar main"
+    "sidebar footer";
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: 50px 1fr 180px;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.header {
+  grid-area: header;
+  background: var(--panel-color);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  background: var(--panel-color);
+  border-right: 1px solid var(--border-color);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.main-content {
+  grid-area: main;
+  background: var(--bg-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.footer {
+  grid-area: footer;
+  background: var(--panel-color);
+  border-top: 1px solid var(--border-color);
+  padding: 15px 20px;
+  overflow-y: auto;
+}
+
+/* UI Elements */
+.card {
+  background: #21262d;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+h1,
+h2,
+h3 {
+  color: #f0f6fc;
+  font-weight: 600;
+}
+
+input,
+select,
+button {
+  background: #0d1117;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 100%;
+  margin-top: 5px;
+}
+
+button {
+  background: var(--accent-color);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.2s;
+}
+
+
+/* MT5 Layout & Components */
+.mt5-one-click-panel {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  gap: 2px;
+  background: rgba(22, 27, 34, 0.95);
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px solid #30363d;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+
+.mt5-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  min-width: 90px;
+  text-align: center;
+  transition: all 0.2s;
+  font-weight: bold;
+}
+
+.mt5-btn.buy {
+  background: linear-gradient(180deg, #2ea44f 0%, #238636 100%);
+  color: white;
+}
+
+.mt5-btn.sell {
+  background: linear-gradient(180deg, #da3633 0%, #bb2d2a 100%);
+  color: white;
+}
+
+.mt5-btn:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
+.mt5-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.9);
+}
+
+.mt5-lot-selector {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  color: white;
+  width: 70px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 1rem;
+  padding: 8px 0;
+  border-radius: 4px;
+  margin: 0 5px;
+}
+
+.mt5-sidebar-section {
+  background: var(--panel-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.mt5-sidebar-header {
+  background: #21262d;
+  padding: 10px 15px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mt5-list-item {
+  padding: 10px 15px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #21262d;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.2s;
+}
+
+.mt5-list-item:hover {
+  background: #21262d;
+  color: var(--accent-color);
+}
+
+.mt5-list-item.active {
+  background: #1f6feb;
+  color: white;
+}
+
+.indicators-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px;
+}
+
+.indicator-tag {
+  background: #30363d;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.indicator-remove {
+  color: var(--error-color);
+  cursor: pointer;
+  margin-left: 8px;
+  font-weight: bold;
+}
+
+button.secondary {
+  background: #21262d;
+  border: 1px solid var(--border-color);
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.badge-green {
+  background: rgba(63, 185, 80, 0.1);
+  color: var(--success-color);
+}
+
+.badge-red {
+  background: rgba(248, 81, 73, 0.1);
+  color: var(--error-color);
+}
+
+/* Dark Mode Select Fix */
+select {
+  background-color: #21262d !important;
+  color: #c9d1d9 !important;
+  border: 1px solid var(--border-color);
+}
+
+select option {
+  background-color: #21262d !important;
+  color: #c9d1d9 !important;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 768px) {
+
+  html,
+  body {
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100vh;
+  }
+
+  body {
+    display: block;
+  }
+
+  #root {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .header {
+    order: 1;
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .logo-section {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    gap: 5px;
+  }
+
+  .main-content {
+    order: 2;
+    height: 60vh;
+    min-height: 400px;
+    width: 100%;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .footer {
+    order: 3;
+    height: auto;
+    min-height: 250px;
+    width: 100%;
+  }
+
+  .sidebar {
+    order: 4;
+    padding: 15px;
+    width: 100%;
+    border-right: none;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .mt5-one-click-panel {
+    top: auto;
+    bottom: 40px;
+    /* Right above the tab bar */
+    right: 5px;
+    transform: scale(0.8);
+    transform-origin: bottom right;
+  }
+}
