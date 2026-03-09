@@ -51,13 +51,19 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
     // Need to store drawings per symbol ideally, but for now we keep it simple
     const [drawingsMap, setDrawingsMap] = useState({});
     const drawings = drawingsMap[activeSymbol] || [];
-    const setDrawings = (newDrawings) => {
+    const activeSymbolRef = useRef(activeSymbol);
+    React.useEffect(() => {
+        activeSymbolRef.current = activeSymbol;
+    }, [activeSymbol]);
+
+    const setDrawings = React.useCallback((newDrawings) => {
         setDrawingsMap(prevMap => {
-            const currentDrawings = prevMap[activeSymbol] || [];
+            const sym = activeSymbolRef.current;
+            const currentDrawings = prevMap[sym] || [];
             const updatedDrawings = typeof newDrawings === 'function' ? newDrawings(currentDrawings) : newDrawings;
-            return { ...prevMap, [activeSymbol]: updatedDrawings };
+            return { ...prevMap, [sym]: updatedDrawings };
         });
-    };
+    }, []);
 
     const [timezoneOffset, setTimezoneOffset] = useState(-3);
     const [isFollowEnabled, setIsFollowEnabled] = useState(true);
@@ -287,6 +293,7 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                         <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} style={{ width: '55px', padding: '2px', fontSize: '0.7rem' }}>
                             <option value="1">1x</option>
                             <option value="2">2x</option>
+                            <option value="3">3x</option>
                             <option value="5">5x</option>
                             <option value="10">10x</option>
                         </select>

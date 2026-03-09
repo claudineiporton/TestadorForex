@@ -70,6 +70,7 @@ const TradingChart = forwardRef(({
     const positionsRef = useRef(positions);
     const dataRef = useRef(data);
     const onUpdatePositionRef = useRef(onUpdatePosition);
+    const setDrawingsRef = useRef(setDrawings);
 
     useEffect(() => { hoveredDrawingIdRef.current = hoveredDrawingId; }, [hoveredDrawingId]);
     useEffect(() => { selectedDrawingIdRef.current = selectedDrawingId; }, [selectedDrawingId]);
@@ -80,6 +81,7 @@ const TradingChart = forwardRef(({
     useEffect(() => { positionsRef.current = positions; }, [positions]);
     useEffect(() => { dataRef.current = data; }, [data]);
     useEffect(() => { onUpdatePositionRef.current = onUpdatePosition; }, [onUpdatePosition]);
+    useEffect(() => { setDrawingsRef.current = setDrawings; }, [setDrawings]);
 
     // Math Utility: Distance from Point to Line Segment
     const getPointToLineDistance = (x, y, x1, y1, x2, y2) => {
@@ -215,15 +217,17 @@ const TradingChart = forwardRef(({
         askSeriesRef.current = askSeries;
         separatorSeriesRef.current = separatorSeries;
 
-        const handleResize = () => {
+        const handleResize = (entries) => {
             if (chartContainerRef.current) {
-                chart.applyOptions({
-                    width: chartContainerRef.current.clientWidth,
-                    height: chartContainerRef.current.clientHeight
-                });
+                const width = entries && entries[0] ? entries[0].contentRect.width : chartContainerRef.current.clientWidth;
+                const height = entries && entries[0] ? entries[0].contentRect.height : chartContainerRef.current.clientHeight;
+                if (width === 0 || height === 0) return;
+                chart.applyOptions({ width, height });
             }
         };
-        window.addEventListener('resize', handleResize);
+
+        const resizeObserver = new ResizeObserver(entries => handleResize(entries));
+        resizeObserver.observe(chartContainerRef.current);
 
         // Click Handler for Drawings
         chart.subscribeClick((param) => {
@@ -269,11 +273,11 @@ const TradingChart = forwardRef(({
             const id = Date.now();
 
             if (tool === 'horizontal') {
-                setDrawings(prev => [...prev, { id, type: 'horizontal', price, color }]);
+                setDrawingsRef.current(prev => [...prev, { id, type: 'horizontal', price, color }]);
                 onToolCompleteRef.current();
             } else if (tool === 'vertical') {
                 if (!time) return;
-                setDrawings(prev => [...prev, { id, type: 'vertical', time, color }]);
+                setDrawingsRef.current(prev => [...prev, { id, type: 'vertical', time, color }]);
                 onToolCompleteRef.current();
             } else if (tool === 'trend' || tool === 'fib') {
                 if (!time) return;
@@ -300,7 +304,7 @@ const TradingChart = forwardRef(({
                 const startPrice = series.coordinateToPrice(param.point.y + 40) || price;
                 const endPrice = series.coordinateToPrice(param.point.y - 40) || price;
 
-                setDrawings(prev => [...prev, {
+                setDrawingsRef.current(prev => [...prev, {
                     id,
                     type: tool,
                     start: { time: startTime, price: startPrice },
@@ -311,16 +315,20 @@ const TradingChart = forwardRef(({
             }
         });
 
-        // Mouse Events for Dragging
-        const handleMouseDown = (e) => {
+        // Events for Dragging
+        const getTouchClientY = (e) => (e.touches && e.touches.length > 0) ? e.touches[0].clientY : null;
+
+        const handleDown = (clientY, e) => {
             if (activeToolRef.current) return;
 
             if (hoveredDrawingIdRef.current) {
                 setDraggingDrawingId(hoveredDrawingIdRef.current);
                 setDraggingHandle(hoveredHandleRef.current || 'line');
                 draggingHandleRef.current = hoveredHandleRef.current || 'line';
+
+                if (e.cancelable) e.preventDefault();
                 e.stopPropagation();
-                e.preventDefault();
+
                 // Temporarily disable scroll
                 if (chartRef.current) {
                     chartRef.current.applyOptions({ handleScroll: false, handleScale: false });
@@ -330,33 +338,39 @@ const TradingChart = forwardRef(({
 
             // Hit test for trade lines
             const rect = chartContainerRef.current.getBoundingClientRect();
-            const y = e.clientY - rect.top;
-            const hitThreshold = 12; // Increased threshold for better UX
+            const y = clientY - rect.top;
+            const hitThreshold = 18; // Increased threshold for better touch UX
 
             for (const pos of positionsRef.current) {
                 const slY = seriesRef.current.priceToCoordinate(pos.sl);
                 if (slY !== null && Math.abs(y - slY) <= hitThreshold) {
                     setDraggingTrade({ id: pos.id, type: 'sl' });
+                    if (e.cancelable) e.preventDefault();
                     e.stopPropagation();
-                    e.preventDefault();
                     return;
                 }
                 const tpY = seriesRef.current.priceToCoordinate(pos.tp);
                 if (tpY !== null && Math.abs(y - tpY) <= hitThreshold) {
                     setDraggingTrade({ id: pos.id, type: 'tp' });
+                    if (e.cancelable) e.preventDefault();
                     e.stopPropagation();
-                    e.preventDefault();
                     return;
                 }
             }
         };
 
-        const handleMouseMove = (e) => {
+        const handleMouseDown = (e) => handleDown(e.clientY, e);
+        const handleTouchStart = (e) => {
+            const y = getTouchClientY(e);
+            if (y !== null) handleDown(y, e);
+        };
+
+        const handleMove = (clientY) => {
             if (!draggingTradeRef.current && !draggingDrawingIdRef.current) return;
             if (!chartContainerRef.current || !seriesRef.current) return;
 
             const rect = chartContainerRef.current.getBoundingClientRect();
-            const y = e.clientY - rect.top;
+            const y = clientY - rect.top;
 
             if (draggingTradeRef.current) {
                 chartContainerRef.current.style.cursor = 'ns-resize';
@@ -365,10 +379,17 @@ const TradingChart = forwardRef(({
                     const { id, type } = draggingTradeRef.current;
                     onUpdatePositionRef.current(id, { [type]: Number(price.toFixed(5)) });
                 }
-            } else if (draggingDrawingIdRef.current) {
-                // Drawing dragging logic is slightly different as it needs 'time'
-                // For now, we'll keep use the internal crosshair move subscription for drawings 
-                // to maintain time-scale consistency, as Lightweight Charts handles this better.
+            }
+        };
+
+        const handleMouseMove = (e) => handleMove(e.clientY);
+        const handleTouchMove = (e) => {
+            const y = getTouchClientY(e);
+            if (y !== null) {
+                if (draggingTradeRef.current || draggingDrawingIdRef.current) {
+                    if (e.cancelable) e.preventDefault();
+                }
+                handleMove(y);
             }
         };
 
@@ -379,16 +400,21 @@ const TradingChart = forwardRef(({
             draggingHandleRef.current = null;
             draggingStartPointRef.current = null;
 
+            if (chartContainerRef.current) chartContainerRef.current.style.cursor = 'default';
             // Re-enable scroll and scale
             if (chartRef.current) {
                 chartRef.current.applyOptions({ handleScroll: true, handleScale: true });
             }
         };
+        const handleTouchEnd = handleMouseUp;
 
         if (chartContainerRef.current) {
             chartContainerRef.current.addEventListener('mousedown', handleMouseDown, true); // Use capture
+            chartContainerRef.current.addEventListener('touchstart', handleTouchStart, { passive: false });
             window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('touchmove', handleTouchMove, { passive: false });
             window.addEventListener('mouseup', handleMouseUp);
+            window.addEventListener('touchend', handleTouchEnd);
         }
 
         // Hover & Crosshair Handler (Strictly for hover feedback and drawing creation)
@@ -428,7 +454,7 @@ const TradingChart = forwardRef(({
                 const price = series.coordinateToPrice(y);
                 if (price === null) return;
 
-                setDrawings(prev => prev.map(d => {
+                setDrawingsRef.current(prev => prev.map(d => {
                     if (d.id === draggingDrawingIdRef.current) {
                         if (d.type === 'horizontal') {
                             return { ...d, price };
@@ -607,11 +633,14 @@ const TradingChart = forwardRef(({
 
         return () => {
             if (chartContainerRef.current) {
-                chartContainerRef.current.removeEventListener('mousedown', handleMouseDown);
+                chartContainerRef.current.removeEventListener('mousedown', handleMouseDown, true);
+                chartContainerRef.current.removeEventListener('touchstart', handleTouchStart);
             }
             window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('touchmove', handleTouchMove);
             window.removeEventListener('mouseup', handleMouseUp);
-            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('touchend', handleTouchEnd);
+            resizeObserver.disconnect();
             chart.remove();
         };
     }, []); // Run once on mount
