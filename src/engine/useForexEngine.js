@@ -29,14 +29,13 @@ export const useForexEngine = (initialBalance = 0) => {
     const priceInterval = useRef(null);
 
     const [isLoadingData, setIsLoadingData] = useState(false);
-    const historicalDataRef = useRef([]); // Armazena todos os candles reais
-    const currentIndexRef = useRef(0);    // Ponteiro de reprodução
-    const lastKnownTimeRef = useRef(null); // Para sincronizar entre timeframes
-    const positionsRef = useRef([]);      // TRACK POSITIONS SYNC FOR SIM LOOP
+    const historicalDataRef = useRef([]);
+    const currentIndexRef = useRef(0);
+    const lastKnownTimeRef = useRef(null);
+    const positionsRef = useRef([]);
 
     const fetchLocalRangeInfo = useCallback(async (symbol) => {
         try {
-            // M1 is the base resolution we import
             const range = await getStoredDateRange(symbol, 60);
             setLocalDataRange(range);
         } catch (error) {
@@ -54,7 +53,7 @@ export const useForexEngine = (initialBalance = 0) => {
     useEffect(() => {
         let isCancelled = false;
         const fetchYahooData = async () => {
-            setIsLoadingData(true);
+            const wasRunningBefore = isRunning;
             // Clear current view immediately to prevent timeframe mismatch crashes in the chart
             setCandles([]);
             historicalDataRef.current = [];
@@ -88,12 +87,11 @@ export const useForexEngine = (initialBalance = 0) => {
                 const period2 = Math.floor(dEnd.getTime() / 1000);
                 const exactStartTime = Math.floor(dStart.getTime() / 1000);
 
-                // --- 1. TRY LOCAL INDEXED DB FIRST ---
                 const localData = await getHistoricalData(activeSymbol, baseTimeframe, period1, period2);
                 let normalizedData = [];
 
                 if (localData && localData.length > 0) {
-                    console.log(`[Engine] Loaded ${localData.length} records from Local DB for ${activeSymbol}`);
+                    console.log(`Loaded ${localData.length} records from Local DB for ${activeSymbol}`);
                     dataTimeframeRef.current = baseTimeframe;
 
                     // Deduplicate and strictly sort the local data. 
@@ -105,37 +103,13 @@ export const useForexEngine = (initialBalance = 0) => {
                     }
 
                     normalizedData = Array.from(uniqueMap.values()).sort((a, b) => a.time - b.time);
-                    console.log(`[Engine] After deduplication: ${normalizedData.length} unique candles`);
                 } else {
-                    // --- 2. FALLBACK TO YAHOO FINANCE ---
-                    console.log(`[Engine] Local data not found. Falling back to Yahoo Finance for ${activeSymbol}`);
-
                     if (timeframe === 300) interval = '5m';
                     else if (timeframe === 900) interval = '15m';
                     else if (timeframe === 1800) interval = '30m';
                     else if (timeframe === 3600) interval = '1h';
                     else if (timeframe === 14400) interval = '1h';
                     else if (timeframe === 86400) interval = '1d';
-
-                    // --- YAHOO FINANCE INTRADAY LIMITATION FIX ---
-                    const now = new Date();
-                    let yfStart = new Date(dStartBuffer);
-
-                    if (interval === '1m') {
-                        const maxPastDate = new Date();
-                        maxPastDate.setDate(now.getDate() - 7);
-                        if (yfStart < maxPastDate) {
-                            console.warn("1m data limited to last 7 days. Clamping.");
-                            yfStart = maxPastDate;
-                        }
-                    } else if (interval !== '1d') {
-                        const maxPastDate = new Date();
-                        maxPastDate.setDate(now.getDate() - 59);
-                        if (yfStart < maxPastDate) {
-                            console.warn("Intraday data limited to last 60 days. Clamping.");
-                            yfStart = maxPastDate;
-                        }
-                    }
 
                     if (yfStart > dEnd) yfStart = new Date(dEnd.getTime() - (86400 * 1000 * 7));
 
@@ -159,7 +133,6 @@ export const useForexEngine = (initialBalance = 0) => {
                     const quote = result[0].indicators.quote[0];
                     const timestamps = result[0].timestamp;
 
-                    // Map into Lightweight-charts format
                     let rawData = [];
                     for (let i = 0; i < timestamps.length; i++) {
                         if (quote.open[i] !== null && quote.close[i] !== null) {
@@ -207,7 +180,6 @@ export const useForexEngine = (initialBalance = 0) => {
                 if (isCancelled) return;
                 historicalDataRef.current = normalizedData;
 
-                // --- TIMEFRAME SYNC LOGIC ---
                 let startIdx = 0;
                 if (syncTime) {
                     // Usually timeframe change: keep same time
@@ -250,7 +222,6 @@ export const useForexEngine = (initialBalance = 0) => {
                 currentIndexRef.current = startIdx;
                 const visibleGranular = normalizedData.slice(0, startIdx + 1);
 
-                // --- AGGREGATION FOR INITIAL STATE ---
                 const initialAggregated = aggregateData(visibleGranular, timeframe);
                 setCandles(initialAggregated);
 
@@ -267,6 +238,10 @@ export const useForexEngine = (initialBalance = 0) => {
                 console.error("Failed to fetch historical data:", error);
             } finally {
                 setIsLoadingData(false);
+                // If it was running before the timeframe change, resume it now that data is ready
+                if (wasRunningBefore) {
+                    setIsRunning(true);
+                }
             }
         };
 
@@ -313,7 +288,6 @@ export const useForexEngine = (initialBalance = 0) => {
         setEquity(Number((balance + floatingPnL).toFixed(2)));
     }, [currentPrice, askPrice, positions, balance, activeSymbol]);
 
-    // Playback Logic (Injecting Real Historical Data Frame-by-Frame)
     const checkTakeProfitStopLoss = useCallback((bidPrice, askPrice) => {
         if (bidPrice == null || askPrice == null) return;
 
@@ -350,7 +324,7 @@ export const useForexEngine = (initialBalance = 0) => {
 
             if (shouldClose) {
                 const type = (pos.type === 'BUY' ? (checkPrice >= Number(pos.tp) ? 'TP' : 'SL') : (checkPrice <= Number(pos.tp) ? 'TP' : 'SL'));
-                console.log(`[Engine] Position ${pos.id} (${pos.type}) HIT ${type} @ ${checkPrice}. Target was ${closePriceHit}`);
+                console.log(`Position ${pos.id} (${pos.type}) HIT ${type} @ ${checkPrice}. Target was ${closePriceHit}`);
 
                 // Em simulação ideal, executamos exatamente no preço do limite (slippage zero).
                 const executedPrice = closePriceHit || checkPrice;
@@ -377,12 +351,14 @@ export const useForexEngine = (initialBalance = 0) => {
         if (!isRunning || !historicalDataRef.current.length) return;
 
         const nextIndex = currentIndexRef.current + 1;
+        const latestGranular = historicalDataRef.current[nextIndex];
+        // If data is temporarily empty (reloading), just skip this tick instead of stopping
+        if (!latestGranular) return;
+
         if (nextIndex >= historicalDataRef.current.length) {
             setIsRunning(false);
             return;
         }
-
-        const latestGranular = historicalDataRef.current[nextIndex];
         if (!latestGranular) return;
 
         // Check against endDate to stop the simulation
@@ -445,8 +421,10 @@ export const useForexEngine = (initialBalance = 0) => {
 
     useEffect(() => {
         if (isRunning) {
-            const timeframeFactor = Math.pow(timeframe / 60, 0.3);
-            const realTickInterval = Math.max(40, (1000 * timeframeFactor) / speed);
+            // Speed improvement: Reduce the damping effect of higher timeframes 
+            // and lower the minimum interval for a much faster simulation experience.
+            const timeframeFactor = Math.pow(timeframe / 60, 0.15); // Reduced from 0.3 to 0.15
+            const realTickInterval = Math.max(10, (1000 * timeframeFactor) / (speed * 2)); // Lowered min from 40 to 10, boosted speed
             priceInterval.current = setInterval(tickPrice, realTickInterval);
         } else {
             clearInterval(priceInterval.current);
@@ -497,7 +475,7 @@ export const useForexEngine = (initialBalance = 0) => {
     };
 
     const updatePosition = (id, updates) => {
-        console.log(`[Engine] Updating position ${id}:`, updates);
+        console.log(`Updating position ${id}:`, updates);
         const updated = positionsRef.current.map(pos =>
             pos.id === id ? { ...pos, ...updates } : pos
         );
@@ -509,12 +487,6 @@ export const useForexEngine = (initialBalance = 0) => {
         setBalance(prev => prev + amount);
     };
 
-    /**
-     * Parses an MT5 History Export CSV file and saves it to local IndexedDB.
-     * Expected format: <DATE>\t<TIME>\t<OPEN>\t<HIGH>\t<LOW>\t<CLOSE>\t<TICKVOL>\t<VOL>\t<SPREAD>
-     * @param {File} file 
-     * @param {string} symbol
-     */
     const importCSVData = (file, symbol) => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();

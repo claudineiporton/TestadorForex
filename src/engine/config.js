@@ -25,6 +25,51 @@ export const SYMBOLS = {
         lotSize: 100000,
         initialPrice: 1.27200,
         spreadPoints: 15
+    },
+    AUDUSD: {
+        name: 'AUD/USD',
+        digits: 5,
+        pipSize: 0.0001,
+        tickSize: 0.00001,
+        lotSize: 100000,
+        initialPrice: 0.66500,
+        spreadPoints: 12
+    },
+    USDCHF: {
+        name: 'USD/CHF',
+        digits: 5,
+        pipSize: 0.0001,
+        tickSize: 0.00001,
+        lotSize: 100000,
+        initialPrice: 0.89500,
+        spreadPoints: 12
+    },
+    NZDUSD: {
+        name: 'NZD/USD',
+        digits: 5,
+        pipSize: 0.0001,
+        tickSize: 0.00001,
+        lotSize: 100000,
+        initialPrice: 0.61200,
+        spreadPoints: 15
+    },
+    XAUUSD: {
+        name: 'Gold/USD',
+        digits: 2,
+        pipSize: 0.1,
+        tickSize: 0.01,
+        lotSize: 100,
+        initialPrice: 2350.00,
+        spreadPoints: 30
+    },
+    BTCUSD: {
+        name: 'Bitcoin/USD',
+        digits: 2,
+        pipSize: 1.0,
+        tickSize: 0.01,
+        lotSize: 1,
+        initialPrice: 65000.00,
+        spreadPoints: 500
     }
 };
 

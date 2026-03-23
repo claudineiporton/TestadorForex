@@ -33,1115 +33,585 @@ const TradingChart = forwardRef(({
     const chartRef = useRef();
     const seriesRef = useRef();
     const askSeriesRef = useRef();
-    const separatorSeriesRef = useRef();
-    const drawingSeriesRef = useRef([]); // To keep track of drawing series
-    const indicatorSeriesRef = useRef({}); // { id: series }
+    const separatorSeriesRef = useRef(); // No longer used for histogram, but we'll use a new ref for multiple series
+    const autoSeparatorSeriesRef = useRef([]);
+    const drawingSeriesRef = useRef([]); 
+    const indicatorSeriesRef = useRef({}); 
 
-    // Refs to avoid re-creating the click handler and chart
     const activeToolRef = useRef(activeTool);
     const activeColorRef = useRef(activeColor);
     const onToolCompleteRef = useRef(onToolComplete);
+    
+    useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
+    useEffect(() => { activeColorRef.current = activeColor; }, [activeColor]);
+    useEffect(() => { onToolCompleteRef.current = onToolComplete; }, [onToolComplete]);
+    const ghostUpdateRef = useRef(() => { });
+    const ghostSeriesRef = useRef();
+    const ghostHorizontalRef = useRef();
+    const ghostVerticalRef = useRef();
+
+    const dataRef = useRef(data);
+    useEffect(() => { dataRef.current = data; }, [data]);
+
+    const getLogicalIndexHover = useCallback((time) => {
+        const vData = dataRef.current;
+        if (!vData || vData.length === 0) return null;
+        const tf = (typeof timeframe === 'number' && !isNaN(timeframe)) ? timeframe : 60;
+        const firstT = vData[0].time;
+        
+        let low = 0, high = vData.length - 1;
+        while (low <= high) {
+            let mid = (low + high) >> 1;
+            if (vData[mid].time === time) return mid;
+            if (vData[mid].time < time) low = mid + 1;
+            else high = mid - 1;
+        }
+        return (time - firstT) / tf;
+    }, [timeframe]);
+
+    const getTimeFromLogX = useCallback((logX) => {
+        const vData = dataRef.current;
+        if (!vData || vData.length === 0) return null;
+        const tf = (typeof timeframe === 'number' && !isNaN(timeframe)) ? timeframe : 60;
+        const firstT = vData[0].time;
+        const lastT = vData[vData.length - 1].time;
+        const count = vData.length;
+
+        if (logX < 0) return firstT + Math.round(logX) * tf;
+        if (logX >= count - 1) return lastT + Math.round(logX - (count - 1)) * tf;
+        
+        const idx = Math.floor(logX);
+        const frac = logX - idx;
+        if (idx < count - 1 && frac > 0) {
+            return vData[idx].time + (vData[idx + 1].time - vData[idx].time) * frac;
+        }
+        return vData[Math.max(0, Math.min(count - 1, idx))].time;
+    }, [timeframe]);
 
     const [pendingDrawing, setPendingDrawing] = useState(null);
+    const pendingDrawingRef = useRef(null);
+    useEffect(() => { pendingDrawingRef.current = pendingDrawing; }, [pendingDrawing]);
 
     useImperativeHandle(ref, () => ({
         center: handleCenter
     }));
 
-    // Interactive States
     const [hoveredDrawingId, setHoveredDrawingId] = useState(null);
     const [selectedDrawingId, setSelectedDrawingId] = useState(null);
+    const selectedDrawingIdRef = useRef(null);
+    useEffect(() => { selectedDrawingIdRef.current = selectedDrawingId; }, [selectedDrawingId]);
     const [draggingDrawingId, setDraggingDrawingId] = useState(null);
-    const [draggingHandle, setDraggingHandle] = useState(null); // 'start', 'end', or 'line'
-    const [draggingTrade, setDraggingTrade] = useState(null); // { id, type } where type is 'sl' or 'tp'
+    const [draggingHandle, setDraggingHandle] = useState(null); 
+    const [draggingTrade, setDraggingTrade] = useState(null); 
+    // Validação robusta que aceita strings numéricas (comum em CSV/JSON)
+    const isValidNumber = (n) => n !== null && n !== undefined && n !== '' && !isNaN(Number(n));
 
-    // Strict number check because isNaN(null) is false in JS!
-    const isValidNumber = (n) => n != null && typeof n === 'number' && !isNaN(n);
-
-    // Using refs for inside event listeners
     const hoveredDrawingIdRef = useRef(hoveredDrawingId);
     const hoveredHandleRef = useRef(null);
-    const selectedDrawingIdRef = useRef(selectedDrawingId);
     const draggingDrawingIdRef = useRef(draggingDrawingId);
     const draggingHandleRef = useRef(draggingHandle);
     const draggingTradeRef = useRef(draggingTrade);
     const draggingStartPointRef = useRef(null);
+    const isDraggingRef = useRef(false);
+    const ignoreNextClickRef = useRef(false);
     const drawingsRef = useRef(drawings);
     const positionsRef = useRef(positions);
-    const dataRef = useRef(data);
     const onUpdatePositionRef = useRef(onUpdatePosition);
     const setDrawingsRef = useRef(setDrawings);
 
-    useEffect(() => { hoveredDrawingIdRef.current = hoveredDrawingId; }, [hoveredDrawingId]);
-    useEffect(() => { selectedDrawingIdRef.current = selectedDrawingId; }, [selectedDrawingId]);
     useEffect(() => { draggingDrawingIdRef.current = draggingDrawingId; }, [draggingDrawingId]);
     useEffect(() => { draggingHandleRef.current = draggingHandle; }, [draggingHandle]);
     useEffect(() => { draggingTradeRef.current = draggingTrade; }, [draggingTrade]);
     useEffect(() => { drawingsRef.current = drawings; }, [drawings]);
     useEffect(() => { positionsRef.current = positions; }, [positions]);
-    useEffect(() => { dataRef.current = data; }, [data]);
     useEffect(() => { onUpdatePositionRef.current = onUpdatePosition; }, [onUpdatePosition]);
     useEffect(() => { setDrawingsRef.current = setDrawings; }, [setDrawings]);
+    useEffect(() => { hoveredDrawingIdRef.current = hoveredDrawingId; }, [hoveredDrawingId]);
 
-    // Math Utility: Distance from Point to Line Segment
-    const getPointToLineDistance = (x, y, x1, y1, x2, y2) => {
+    const getPointToLineDistance = (x, y, x1, y1, x2, y2, isInfinite = false) => {
         const A = x - x1;
         const B = y - y1;
         const C = x2 - x1;
         const D = y2 - y1;
         const dot = A * C + B * D;
         const len_sq = C * C + D * D;
-        let param = -1;
-        if (len_sq !== 0) param = dot / len_sq;
+        if (len_sq === 0) return Math.sqrt(A * A + B * B);
+        let param = dot / len_sq;
         let xx, yy;
-        if (param < 0) {
-            xx = x1;
-            yy = y1;
-        } else if (param > 1) {
-            xx = x2;
-            yy = y2;
+        if (!isInfinite) {
+            if (param < 0) { xx = x1; yy = y1; }
+            else if (param > 1) { xx = x2; yy = y2; }
+            else { xx = x1 + param * C; yy = y1 + param * D; }
         } else {
-            xx = x1 + param * C;
-            yy = y1 + param * D;
+            xx = x1 + param * C; yy = y1 + param * D;
         }
-        const dx = x - xx;
-        const dy = y - yy;
+        const dx = x - xx; const dy = y - yy;
         return Math.sqrt(dx * dx + dy * dy);
     };
 
-    // Update refs when props change
-    useEffect(() => {
-        activeToolRef.current = activeTool;
-        activeColorRef.current = activeColor;
-        onToolCompleteRef.current = onToolComplete;
-    }, [activeTool, activeColor, onToolComplete]);
+    const getHitDrawing = useCallback((x, y) => {
+        const chart = chartRef.current;
+        const series = seriesRef.current;
+        if (!chart || !series) return null;
+        const hitThreshold = 40;
+        const handleRadius = 60;
+        const currentDrawings = drawingsRef.current;
+        for (let i = currentDrawings.length - 1; i >= 0; i--) {
+            const draw = currentDrawings[i];
+            if (draw.type === 'horizontal') {
+                const lineY = series.priceToCoordinate(draw.price);
+                if (lineY !== null && Math.abs(y - lineY) <= hitThreshold) return { id: draw.id, handle: 'line' };
+            } else if (draw.type === 'vertical') {
+                const logX = getLogicalIndexHover(draw.time);
+                if (logX !== null) {
+                    const lineX = chart.timeScale().logicalToCoordinate(logX);
+                    if (lineX !== null && Math.abs(x - lineX) <= hitThreshold) return { id: draw.id, handle: 'line' };
+                }
+            } else if (draw.type === 'trend' || draw.type === 'fib') {
+                const log1 = getLogicalIndexHover(draw.start.time);
+                const log2 = getLogicalIndexHover(draw.end.time);
+                if (log1 !== null && log2 !== null) {
+                    const x1 = chart.timeScale().logicalToCoordinate(log1);
+                    const y1 = series.priceToCoordinate(draw.start.price);
+                    const x2 = chart.timeScale().logicalToCoordinate(log2);
+                    const y2 = series.priceToCoordinate(draw.end.price);
+                    if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
+                        if (Math.sqrt((x-x1)**2+(y-y1)**2) <= handleRadius) return { id: draw.id, handle: 'start' };
+                        if (Math.sqrt((x-x2)**2+(y-y2)**2) <= handleRadius) return { id: draw.id, handle: 'end' };
+                        const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2;
+                        if (Math.sqrt((x-mx)**2+(y-my)**2) <= handleRadius) return { id: draw.id, handle: 'line' };
+                        const dist = getPointToLineDistance(x, y, x1, y1, x2, y2, false); 
+                        if (dist <= hitThreshold) return { id: draw.id, handle: 'line' };
+                    }
+                }
+            }
+        }
+        return null;
+    }, [getLogicalIndexHover]);
 
-    useEffect(() => {
-        hoveredDrawingIdRef.current = hoveredDrawingId;
-    }, [hoveredDrawingId]);
-
-    useEffect(() => {
-        drawingsRef.current = drawings;
-    }, [drawings]);
-
-    // Initial Chart Setup
     useEffect(() => {
         if (!chartContainerRef.current) return;
-
         const isLight = chartBgColor.toLowerCase() === '#ffffff';
         const dynamicTextColor = isLight ? '#000000' : '#c9d1d9';
         const gridColor = isLight ? 'rgba(0,0,0,0.1)' : '#21262d';
-
         const chart = createChart(chartContainerRef.current, {
-            layout: {
-                background: { type: ColorType.Solid, color: chartBgColor },
-                textColor: dynamicTextColor,
-            },
+            layout: { background: { type: ColorType.Solid, color: chartBgColor }, textColor: dynamicTextColor },
             localization: {
-                timeFormatter: (timeData) => {
-                    if (typeof timeData === 'object' && timeData !== null) {
-                        return `${timeData.year} -${String(timeData.month).padStart(2, '0')} -${String(timeData.day).padStart(2, '0')} `;
-                    }
-                    const shiftedTimestamp = timeData + (timezoneOffset * 3600);
-                    const d = new Date(shiftedTimestamp * 1000);
-                    return d.toISOString().replace('T', ' ').substring(0, 16);
-                },
+                timeFormatter: (t) => {
+                    if (typeof t === 'object' && t !== null) return `${t.year}-${String(t.month).padStart(2,'0')}-${String(t.day).padStart(2,'0')}`;
+                    const d = new Date((t + (timezoneOffset * 3600)) * 1000);
+                    return d.toISOString().replace('T',' ').substring(0,16);
+                }
             },
-            grid: {
-                vertLines: { visible: false }, // Force off to prevent native lines creating 12-hour pseudo-separators
-                horzLines: { color: gridColor, visible: showGrid },
-            },
-            width: chartContainerRef.current.clientWidth,
-            height: chartContainerRef.current.clientHeight,
-            timeScale: {
-                rightOffset: 150,
-                barSpacing: 10,
-                fixLeftEdge: true,
-                timeVisible: true,
-                secondsVisible: false,
-            }
+            grid: { vertLines: { visible: false }, horzLines: { color: gridColor, visible: showGrid } },
+            width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight,
+            timeScale: { rightOffset: 150, barSpacing: 10, fixLeftEdge: true, timeVisible: true }
         });
-
         const series = chart.addSeries(CandlestickSeries, {
-            upColor: upCandleColor,
-            downColor: downCandleColor,
-            borderVisible: true,
-            borderColor: '#377dff',
-            wickUpColor: upCandleColor,
-            wickDownColor: downCandleColor,
-            borderUpColor: upCandleColor,
-            borderDownColor: downCandleColor,
+            upColor: upCandleColor, downColor: downCandleColor, borderVisible: true,
+            wickUpColor: upCandleColor, wickDownColor: downCandleColor,
+            borderUpColor: upCandleColor, borderDownColor: downCandleColor
         });
-
         const askSeries = chart.addSeries(LineSeries, {
-            color: 'rgba(255, 68, 68, 0.7)', // Red with slight transparency
-            lineWidth: 1,
-            lineStyle: LineStyle.Solid,
-            crosshairMarkerVisible: false,
-            lastValueVisible: true,
-            priceLineVisible: true,
-            lastPriceAnimation: 0,
-            title: 'Ask',
+            color: 'rgba(255, 68, 68, 0.7)', lineWidth: 1, lastValueVisible: true, title: 'Ask'
         });
-
         const sepStyle = separatorConfig.style === 'solid' ? LineStyle.Solid : separatorConfig.style === 'dotted' ? LineStyle.Dotted : LineStyle.Dashed;
-        const separatorSeries = chart.addSeries(LineSeries, {
-            color: separatorConfig.color,
-            lineWidth: separatorConfig.width,
-            lineStyle: sepStyle,
-            priceScaleId: 'right', // Use main scale to ensure it is rendered within the visible area
-            autoscaleInfoProvider: () => null, // Crucial: ignore this series for auto-scaling bounds
-            lastValueVisible: false,
-            priceLineVisible: false,
-            crosshairMarkerVisible: false,
+        chartRef.current = chart; seriesRef.current = series; askSeriesRef.current = askSeries;
+
+        const ghostSeries = chart.addSeries(LineSeries, {
+            color: activeColorRef.current, lineWidth: 2, lineStyle: LineStyle.Dashed,
+            autoscaleInfoProvider: () => null, visible: false
         });
-
-        // We no longer strictly need the left scale for separators, but we leave it invisible
-        chart.priceScale('left').applyOptions({
-            visible: false,
-            autoScale: false,
-            scaleMargins: {
-                top: 0,
-                bottom: 0,
-            },
-            priceRange: {
-                from: 0,
-                to: 1,
-            },
-            borderVisible: false,
-            ticksVisible: false,
+        const ghostHorizontal = series.createPriceLine({ price: 0, color: 'transparent', lineWidth: 1, lineStyle: LineStyle.Dashed });
+        const ghostVertical = chart.addSeries(LineSeries, {
+            color: activeColorRef.current, lineWidth: 2, lineStyle: LineStyle.Dotted,
+            autoscaleInfoProvider: () => null, visible: false
         });
+        ghostSeriesRef.current = ghostSeries; ghostHorizontalRef.current = ghostHorizontal; ghostVerticalRef.current = ghostVertical;
 
-        chartRef.current = chart;
-        seriesRef.current = series;
-        askSeriesRef.current = askSeries;
-        separatorSeriesRef.current = separatorSeries;
-
-        const handleResize = (entries) => {
-            if (chartContainerRef.current) {
-                const width = entries && entries[0] ? entries[0].contentRect.width : chartContainerRef.current.clientWidth;
-                const height = entries && entries[0] ? entries[0].contentRect.height : chartContainerRef.current.clientHeight;
-                if (width === 0 || height === 0) return;
-                chart.applyOptions({ width, height });
+        ghostUpdateRef.current = (draw) => {
+            if (!draw) {
+                ghostSeries.applyOptions({ visible: false });
+                ghostHorizontal.applyOptions({ color: 'transparent' });
+                ghostVertical.applyOptions({ visible: false });
+                return;
+            }
+            if (draw.type === 'trend' || draw.type === 'fib') {
+                ghostSeries.applyOptions({ visible: true, color: activeColorRef.current });
+                const p1 = draw.start, p2 = draw.end;
+                const slope = (p2.price - p1.price) / (p2.time - p1.time || 0.00001);
+                const intercept = p1.price - (slope * p1.time);
+                const vData = dataRef.current;
+                if (vData.length) {
+                    ghostSeries.setData([{ time: vData[0].time, value: slope * vData[0].time + intercept },
+                                         { time: vData[vData.length-1].time, value: slope * vData[vData.length-1].time + intercept }]);
+                }
+            } else if (draw.type === 'horizontal') {
+                ghostHorizontal.applyOptions({ color: activeColorRef.current, price: draw.price });
+            } else if (draw.type === 'vertical') {
+                ghostVertical.applyOptions({ visible: true, color: activeColorRef.current });
+                const allPrices = dataRef.current.map(d => [d.high, d.low]).flat().filter(isValidNumber);
+                if (allPrices.length) {
+                    ghostVertical.setData([{ time: draw.time, value: Math.min(...allPrices)*0.5 }, { time: draw.time, value: Math.max(...allPrices)*1.5 }]);
+                }
             }
         };
 
-        const resizeObserver = new ResizeObserver(entries => handleResize(entries));
-        resizeObserver.observe(chartContainerRef.current);
-
-        // Click Handler for Drawings
-        chart.subscribeClick((param) => {
-            if (!param.point) return;
-
-            // Handle Selection
-            if (!activeToolRef.current) {
-                if (hoveredDrawingIdRef.current) {
-                    setSelectedDrawingId(hoveredDrawingIdRef.current);
-                } else {
-                    setSelectedDrawingId(null);
-                }
-                return;
-            }
-
+        const handleClick = (param) => {
+            if (!param.point || ignoreNextClickRef.current) { ignoreNextClickRef.current = false; return; }
+            if (!activeToolRef.current) { setSelectedDrawingId(hoveredDrawingIdRef.current); return; }
             const logicalX = chart.timeScale().coordinateToLogical(param.point.x);
-            let time = param.time; // Fallback
-
-            if (logicalX !== null) {
-                const index = Math.floor(logicalX);
-                const fraction = logicalX - index;
-                const d = dataRef.current;
-
-                if (d && d.length > 1) {
-                    if (index < 0) {
-                        const timeDiff = d[1].time - d[0].time;
-                        time = d[0].time + (logicalX * timeDiff);
-                    } else if (index >= d.length - 1) {
-                        const timeDiff = d[d.length - 1].time - d[d.length - 2].time;
-                        time = d[d.length - 1].time + (fraction * timeDiff);
-                    } else {
-                        const timeDiff = d[index + 1].time - d[index].time;
-                        time = d[index].time + (fraction * timeDiff);
-                    }
-                }
-            }
-
             const price = series.coordinateToPrice(param.point.y);
-
-            // Normal drawing mode 
+            if (logicalX === null || price === null) return;
+            const finalTime = getTimeFromLogX(logicalX);
             const tool = activeToolRef.current;
             const color = activeColorRef.current;
-            const id = Date.now();
+            const id = Date.now().toString() + Math.random().toString(36).substring(2, 9);
 
-            if (tool === 'horizontal') {
-                setDrawingsRef.current(prev => [...prev, { id, type: 'horizontal', price, color }]);
-                onToolCompleteRef.current();
-            } else if (tool === 'vertical') {
-                if (!time) return;
-                setDrawingsRef.current(prev => [...prev, { id, type: 'vertical', time, color }]);
-                onToolCompleteRef.current();
-            } else if (tool === 'trend' || tool === 'fib') {
-                if (!time) return;
-
-                const visibleRange = chart.timeScale().getVisibleLogicalRange();
-                let startLogical = visibleRange ? visibleRange.from + (visibleRange.to - visibleRange.from) * 0.1 : null;
-                let endLogical = visibleRange ? visibleRange.from + (visibleRange.to - visibleRange.from) * 0.9 : null;
-
-                const d = dataRef.current;
-                let startTime = time;
-                let endTime = time;
-
-                if (d && d.length > 0 && startLogical !== null && endLogical !== null) {
-                    const startIdx = Math.max(0, Math.floor(startLogical));
-                    const endIdx = Math.min(d.length - 1, Math.floor(endLogical));
-                    startTime = d[startIdx]?.time || time;
-                    endTime = d[endIdx]?.time || time + (3600 * 24);
+            if (tool === 'horizontal') { setDrawingsRef.current(prev => [...prev, { id, type: 'horizontal', price: Number(price.toFixed(5)), color }]); onToolCompleteRef.current(); }
+            else if (tool === 'vertical') { setDrawingsRef.current(prev => [...prev, { id, type: 'vertical', time: finalTime, color }]); onToolCompleteRef.current(); }
+            else if (tool === 'trend' || tool === 'fib') {
+                if (!pendingDrawingRef.current) {
+                    const start = { time: finalTime, price: Number(price.toFixed(5)) };
+                    const initial = { type: tool, start, end: { ...start, time: getTimeFromLogX(logicalX + 1) } };
+                    pendingDrawingRef.current = initial; setPendingDrawing(initial);
+                    ghostUpdateRef.current(initial);
                 } else {
-                    endTime = time + 86400 * 5;
+                    const draw = { id, type: tool, start: pendingDrawingRef.current.start, end: { time: finalTime, price: Number(price.toFixed(5)) }, color };
+                    setDrawingsRef.current(prev => [...prev, draw]);
+                    setSelectedDrawingId(id); pendingDrawingRef.current = null; setPendingDrawing(null); onToolCompleteRef.current();
                 }
-
-                // Make the default line sloped instead of perfectly horizontal
-                // Lower y on screen is higher price
-                const startPrice = series.coordinateToPrice(param.point.y + 40) || price;
-                const endPrice = series.coordinateToPrice(param.point.y - 40) || price;
-
-                setDrawingsRef.current(prev => [...prev, {
-                    id,
-                    type: tool,
-                    start: { time: startTime, price: startPrice },
-                    end: { time: endTime, price: endPrice },
-                    color
-                }]);
-                onToolCompleteRef.current();
             }
-        });
+        };
+        chart.subscribeClick(handleClick);
 
-        // Events for Dragging
-        const getTouchClientY = (e) => (e.touches && e.touches.length > 0) ? e.touches[0].clientY : null;
+        const handleDown = (clientX, clientY, e) => {
+            const rect = chartContainerRef.current.getBoundingClientRect();
+            const x = clientX - rect.left, y = clientY - rect.top;
+            const hit = getHitDrawing(x, y);
+            if (hit) {
+                if (activeToolRef.current) ignoreNextClickRef.current = true;
+                setSelectedDrawingId(hit.id); setDraggingDrawingId(hit.id); setDraggingHandle(hit.handle); draggingHandleRef.current = hit.handle;
+                const d = drawingsRef.current.find(i => i.id === hit.id);
+                const logX = chart.timeScale().coordinateToLogical(x);
+                const p = series.coordinateToPrice(y);
+                if (d && logX !== null && p !== null) {
+                    draggingStartPointRef.current = { initialLogX: logX, initialPrice: p, 
+                        initialStartLogX: getLogicalIndexHover(d.type === 'horizontal' ? 0 : (d.start ? d.start.time : d.time)),
+                        initialEndLogX: getLogicalIndexHover(d.end ? d.end.time : 0),
+                        initialStartPrice: d.start ? d.start.price : (d.price || 0),
+                        initialEndPrice: d.end ? d.end.price : (d.price || 0) };
+                }
+                chart.applyOptions({ handleScroll: false, handleScale: false });
+                isDraggingRef.current = true; if (e.cancelable) e.preventDefault(); e.stopPropagation(); return;
+            }
+            setSelectedDrawingId(null);
+            for (const pos of positionsRef.current) {
+                const slY = isValidNumber(pos.sl) ? series.priceToCoordinate(pos.sl) : null;
+                const tpY = isValidNumber(pos.tp) ? series.priceToCoordinate(pos.tp) : null;
+                const entryY = series.priceToCoordinate(pos.openPrice);
 
-        const handleDown = (clientY, e) => {
-            if (activeToolRef.current) return;
+                if (slY !== null && Math.abs(y - slY) <= 40) { setDraggingTrade({ id: pos.id, type: 'sl' }); draggingTradeRef.current = { id: pos.id, type: 'sl' }; chart.applyOptions({ handleScroll: false }); return; }
+                if (tpY !== null && Math.abs(y - tpY) <= 40) { setDraggingTrade({ id: pos.id, type: 'tp' }); draggingTradeRef.current = { id: pos.id, type: 'tp' }; chart.applyOptions({ handleScroll: false }); return; }
+                if (entryY !== null && Math.abs(y - entryY) <= 40) {
+                    // Dragging entry to create SL/TP
+                    setDraggingTrade({ id: pos.id, type: 'entry-drag', initialY: entryY });
+                    draggingTradeRef.current = { id: pos.id, type: 'entry-drag', initialY: entryY };
+                    chart.applyOptions({ handleScroll: false });
+                    return;
+                }
+            }
+        };
 
-            if (hoveredDrawingIdRef.current) {
-                setDraggingDrawingId(hoveredDrawingIdRef.current);
-                setDraggingHandle(hoveredHandleRef.current || 'line');
-                draggingHandleRef.current = hoveredHandleRef.current || 'line';
-
-                if (e.cancelable) e.preventDefault();
-                e.stopPropagation();
-
-                // Temporarily disable scroll
-                if (chartRef.current) {
-                    chartRef.current.applyOptions({ handleScroll: false, handleScale: false });
+        const handleMove = (clientX, clientY) => {
+            const rect = chartContainerRef.current.getBoundingClientRect();
+            const x = clientX - rect.left, y = clientY - rect.top;
+            if (activeToolRef.current && pendingDrawingRef.current) {
+                const p = series.coordinateToPrice(y), lx = chart.timeScale().coordinateToLogical(x);
+                if (p !== null && lx !== null) {
+                    const updated = { ...pendingDrawingRef.current, end: { time: getTimeFromLogX(lx), price: p } };
+                    pendingDrawingRef.current = updated; ghostUpdateRef.current(updated);
                 }
                 return;
             }
-
-            // Hit test for trade lines
-            const rect = chartContainerRef.current.getBoundingClientRect();
-            const y = clientY - rect.top;
-            const hitThreshold = 18; // Increased threshold for better touch UX
-
-            for (const pos of positionsRef.current) {
-                const slY = seriesRef.current.priceToCoordinate(pos.sl);
-                if (slY !== null && Math.abs(y - slY) <= hitThreshold) {
-                    setDraggingTrade({ id: pos.id, type: 'sl' });
-                    if (e.cancelable) e.preventDefault();
-                    e.stopPropagation();
-                    return;
-                }
-                const tpY = seriesRef.current.priceToCoordinate(pos.tp);
-                if (tpY !== null && Math.abs(y - tpY) <= hitThreshold) {
-                    setDraggingTrade({ id: pos.id, type: 'tp' });
-                    if (e.cancelable) e.preventDefault();
-                    e.stopPropagation();
-                    return;
-                }
-            }
-        };
-
-        const handleMouseDown = (e) => handleDown(e.clientY, e);
-        const handleTouchStart = (e) => {
-            const y = getTouchClientY(e);
-            if (y !== null) handleDown(y, e);
-        };
-
-        const handleMove = (clientY) => {
-            if (!draggingTradeRef.current && !draggingDrawingIdRef.current) return;
-            if (!chartContainerRef.current || !seriesRef.current) return;
-
-            const rect = chartContainerRef.current.getBoundingClientRect();
-            const y = clientY - rect.top;
-
             if (draggingTradeRef.current) {
-                chartContainerRef.current.style.cursor = 'ns-resize';
-                const price = seriesRef.current.coordinateToPrice(y);
-                if (price !== null) {
-                    const { id, type } = draggingTradeRef.current;
-                    onUpdatePositionRef.current(id, { [type]: Number(price.toFixed(5)) });
+                const p = series.coordinateToPrice(y);
+                if (p !== null) {
+                    const drag = draggingTradeRef.current;
+                    if (drag.type === 'entry-drag') {
+                        const pos = positionsRef.current.find(i => i.id === drag.id);
+                        if (pos) {
+                            const isBuy = pos.type === 'BUY';
+                            const priceIsAboveEntry = p > pos.openPrice;
+                            const type = isBuy ? (priceIsAboveEntry ? 'tp' : 'sl') : (priceIsAboveEntry ? 'sl' : 'tp');
+                            
+                            const newDrag = { id: drag.id, type };
+                            setDraggingTrade(newDrag);
+                            draggingTradeRef.current = newDrag;
+                            onUpdatePositionRef.current(drag.id, { [type]: Number(p.toFixed(5)) });
+                        }
+                    } else {
+                        onUpdatePositionRef.current(drag.id, { [drag.type]: Number(p.toFixed(5)) });
+                    }
                 }
-            }
-        };
-
-        const handleMouseMove = (e) => handleMove(e.clientY);
-        const handleTouchMove = (e) => {
-            const y = getTouchClientY(e);
-            if (y !== null) {
-                if (draggingTradeRef.current || draggingDrawingIdRef.current) {
-                    if (e.cancelable) e.preventDefault();
-                }
-                handleMove(y);
-            }
-        };
-
-        const handleMouseUp = () => {
-            setDraggingTrade(null);
-            setDraggingDrawingId(null);
-            setDraggingHandle(null);
-            draggingHandleRef.current = null;
-            draggingStartPointRef.current = null;
-
-            if (chartContainerRef.current) chartContainerRef.current.style.cursor = 'default';
-            // Re-enable scroll and scale
-            if (chartRef.current) {
-                chartRef.current.applyOptions({ handleScroll: true, handleScale: true });
-            }
-        };
-        const handleTouchEnd = handleMouseUp;
-
-        if (chartContainerRef.current) {
-            chartContainerRef.current.addEventListener('mousedown', handleMouseDown, true); // Use capture
-            chartContainerRef.current.addEventListener('touchstart', handleTouchStart, { passive: false });
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('touchmove', handleTouchMove, { passive: false });
-            window.addEventListener('mouseup', handleMouseUp);
-            window.addEventListener('touchend', handleTouchEnd);
-        }
-
-        // Hover & Crosshair Handler (Strictly for hover feedback and drawing creation)
-        const getLogicalIndexHover = (time) => {
-            const currentData = dataRef.current;
-            if (!currentData || currentData.length === 0) return null;
-            if (time <= currentData[0].time) return 0;
-            if (time >= currentData[currentData.length - 1].time) return currentData.length - 1;
-            for (let i = 0; i < currentData.length - 1; i++) {
-                if (time >= currentData[i].time && time <= currentData[i + 1].time) {
-                    const range = currentData[i + 1].time - currentData[i].time;
-                    return i + (time - currentData[i].time) / range;
-                }
-            }
-            return null;
-        };
-
-        let lastCrosshairX = -1;
-        let lastCrosshairY = -1;
-
-        chart.subscribeCrosshairMove((param) => {
-            if (!param.point || !chartContainerRef.current) return;
-            const x = param.point.x;
-            const y = param.point.y;
-
-            if (x === lastCrosshairX && y === lastCrosshairY) {
-                return; // Ignore synthetic events from lightweight-charts when changing series
-            }
-            lastCrosshairX = x;
-            lastCrosshairY = y;
-
-            // Drawings Drag (internal)
-            if (draggingDrawingIdRef.current && !activeToolRef.current) {
-                chartContainerRef.current.style.cursor = 'grabbing';
-
-                const time = param.time;
-                const price = series.coordinateToPrice(y);
-                if (price === null) return;
-
-                setDrawingsRef.current(prev => prev.map(d => {
+            } else if (draggingDrawingIdRef.current) {
+                const lx = chart.timeScale().coordinateToLogical(x), p = series.coordinateToPrice(y);
+                if (lx === null || p === null || !draggingStartPointRef.current) return;
+                const start = draggingStartPointRef.current;
+                const newDraws = drawingsRef.current.map(d => {
                     if (d.id === draggingDrawingIdRef.current) {
-                        if (d.type === 'horizontal') {
-                            return { ...d, price };
-                        } else if (d.type === 'vertical') {
-                            return time ? { ...d, time } : d;
-                        } else if (d.type === 'trend' || d.type === 'fib') {
-                            if (draggingHandleRef.current === 'start') {
-                                return { ...d, start: { time, price } };
-                            } else if (draggingHandleRef.current === 'end') {
-                                return { ...d, end: { time, price } };
-                            } else {
-                                if (draggingStartPointRef.current) {
-                                    // Use absolute logical X coordinate to translate time correctly
-                                    const logX = chart.timeScale().coordinateToLogical(x);
-                                    if (logX !== null) {
-                                        // On initial click/drag we set the origin
-                                        if (draggingStartPointRef.current.initialLogX === undefined) {
-                                            const logStart = getLogicalIndexHover(d.start.time);
-                                            const logEnd = getLogicalIndexHover(d.end.time);
-                                            draggingStartPointRef.current = {
-                                                initialLogX: logX,
-                                                initialY: y,
-                                                initialStartLogX: logStart !== null ? logStart : 0, // safe fallback
-                                                initialEndLogX: logEnd !== null ? logEnd : 0,
-                                                initialStartPrice: d.start.price,
-                                                initialEndPrice: d.end.price
-                                            };
-                                        }
-
-                                        const startData = draggingStartPointRef.current;
-
-                                        // Calculate delta in logical index space and price space
-                                        const deltaLogX = logX - startData.initialLogX;
-                                        const deltaPrice = series.coordinateToPrice(startData.initialY) - price; // Inverted as Y goes down
-
-                                        // Apply deltas
-                                        const newStartLogX = startData.initialStartLogX + deltaLogX;
-                                        const newEndLogX = startData.initialEndLogX + deltaLogX;
-
-                                        // Convert logical index back to time safely
-                                        const currentData = dataRef.current;
-
-                                        const getTimeFromLogX = (lx) => {
-                                            if (!currentData || currentData.length === 0) return null;
-                                            if (lx <= 0) return currentData[0].time;
-                                            if (lx >= currentData.length - 1) return currentData[currentData.length - 1].time;
-                                            const idx = Math.floor(lx);
-                                            const frac = lx - idx;
-                                            const t1 = currentData[idx].time;
-                                            const t2 = currentData[idx + 1].time;
-                                            return t1 + (t2 - t1) * frac;
-                                        };
-
-                                        const newStartTime = getTimeFromLogX(newStartLogX);
-                                        const newEndTime = getTimeFromLogX(newEndLogX);
-
-                                        if (newStartTime !== null && newEndTime !== null) {
-                                            return {
-                                                ...d,
-                                                start: {
-                                                    time: newStartTime,
-                                                    price: startData.initialStartPrice - deltaPrice // apply inverted delta
-                                                },
-                                                end: {
-                                                    time: newEndTime,
-                                                    price: startData.initialEndPrice - deltaPrice
-                                                }
-                                            };
-                                        }
-                                    }
-                                } else {
-                                    // Safe fallback that initializes the correct object structure 
-                                    // even though the main logic block will overwrite it for robustness
-                                    draggingStartPointRef.current = { time, price };
-                                }
-                            }
+                        if (d.type === 'horizontal') return { ...d, price: Number(p.toFixed(5)) };
+                        if (d.type === 'vertical') return { ...d, time: getTimeFromLogX(lx) };
+                        if (draggingHandleRef.current === 'start' || draggingHandleRef.current === 'end') {
+                            const pt = { time: getTimeFromLogX(lx), price: Number(p.toFixed(5)) };
+                            return (draggingHandleRef.current === 'start') ? { ...d, start: pt } : { ...d, end: pt };
+                        } else {
+                            const dx = lx - start.initialLogX, dy = start.initialPrice - p;
+                            return { ...d, start: { time: getTimeFromLogX(start.initialStartLogX + dx), price: Number((start.initialStartPrice - dy).toFixed(5)) },
+                                           end: { time: getTimeFromLogX(start.initialEndLogX + dx), price: Number((start.initialEndPrice - dy).toFixed(5)) } };
                         }
                     }
                     return d;
-                }));
-                return;
-            }
-
-            if (activeToolRef.current) {
-                chartContainerRef.current.style.cursor = 'crosshair';
-                return;
-            }
-
-            // Hit Testing Logic for Hover
-            let hoveredId = null;
-            let hoveredHandleLocal = null;
-            const hoverThreshold = 8;
-            const currentDrawings = drawingsRef.current;
-            const currentData = dataRef.current;
-
-            for (let i = currentDrawings.length - 1; i >= 0; i--) {
-                const draw = currentDrawings[i];
-                if (draw.type === 'horizontal') {
-                    const lineY = series.priceToCoordinate(draw.price);
-                    if (lineY !== null && Math.abs(y - lineY) <= hoverThreshold) {
-                        hoveredId = draw.id;
-                        break;
-                    }
-                } else if (draw.type === 'vertical') {
-                    const logX = getLogicalIndexHover(draw.time);
-                    if (logX !== null) {
-                        const lineX = chart.timeScale().logicalToCoordinate(logX);
-                        if (lineX !== null && Math.abs(x - lineX) <= hoverThreshold) {
-                            hoveredId = draw.id;
-                            break;
-                        }
-                    }
-                } else if (draw.type === 'trend' || draw.type === 'fib') {
-                    const log1 = getLogicalIndexHover(draw.start.time);
-                    const log2 = getLogicalIndexHover(draw.end.time);
-                    if (log1 !== null && log2 !== null) {
-                        const x1 = chart.timeScale().logicalToCoordinate(log1);
-                        const y1 = series.priceToCoordinate(draw.start.price);
-                        const x2 = chart.timeScale().logicalToCoordinate(log2);
-                        const y2 = series.priceToCoordinate(draw.end.price);
-
-                        if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
-                            const distStart = Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2));
-                            const distEnd = Math.sqrt(Math.pow(x - x2, 2) + Math.pow(y - y2, 2));
-
-                            // Increased multiplier for endpoints from 2x to 3x (24px radius) for much easier grabbing
-                            if (distStart <= hoverThreshold * 3) {
-                                hoveredId = draw.id;
-                                hoveredHandleLocal = 'start';
-                                break;
-                            } else if (distEnd <= hoverThreshold * 3) {
-                                hoveredId = draw.id;
-                                hoveredHandleLocal = 'end';
-                                break;
-                            }
-
-                            const dist = getPointToLineDistance(x, y, x1, y1, x2, y2);
-                            if (dist <= hoverThreshold) {
-                                hoveredId = draw.id;
-                                hoveredHandleLocal = 'line';
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (hoveredDrawingIdRef.current !== hoveredId) {
-                setHoveredDrawingId(hoveredId);
-            }
-            if (hoveredHandleRef.current !== hoveredHandleLocal) {
-                hoveredHandleRef.current = hoveredHandleLocal;
-                // We shouldn't setState draggingHandle here, it's set on mouseDown.
-            }
-
-            // Cursor management
-            if (hoveredId) {
-                if (hoveredHandleLocal === 'start' || hoveredHandleLocal === 'end') {
-                    chartContainerRef.current.style.cursor = 'crosshair';
-                } else {
-                    chartContainerRef.current.style.cursor = 'pointer';
-                }
+                });
+                setDrawingsRef.current(newDraws);
             } else {
-                // Check if hovering over SL/TP
-                let tradeHover = false;
-                const tradeThreshold = 12;
-                for (const pos of positionsRef.current) {
-                    const slY = seriesRef.current.priceToCoordinate(pos.sl);
-                    if (slY !== null && Math.abs(y - slY) <= tradeThreshold) tradeHover = true;
-                    const tpY = seriesRef.current.priceToCoordinate(pos.tp);
-                    if (tpY !== null && Math.abs(y - tpY) <= tradeThreshold) tradeHover = true;
-                }
-                chartContainerRef.current.style.cursor = tradeHover ? 'ns-resize' : 'default';
+                // Hover cursor
+                const hit = getHitDrawing(x, y);
+                chartContainerRef.current.style.cursor = hit ? (hit.handle === 'line' ? 'pointer' : 'crosshair') : 'default';
             }
+        };
+
+        const handleUp = () => {
+            setDraggingTrade(null); setDraggingDrawingId(null); setDraggingHandle(null);
+            draggingTradeRef.current = null; draggingDrawingIdRef.current = null;
+            chart.applyOptions({ handleScroll: true, handleScale: true });
+            isDraggingRef.current = false;
+        };
+
+        const container = chartContainerRef.current;
+        const onMouseDown = (e) => handleDown(e.clientX, e.clientY, e);
+        const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+        const onTouchStart = (e) => { if (e.touches.length) handleDown(e.touches[0].clientX, e.touches[0].clientY, e); };
+        const onTouchMove = (e) => { if (e.touches.length) { if (isDraggingRef.current) e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); } };
+        
+        container.addEventListener('mousedown', onMouseDown);
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', handleUp);
+        container.addEventListener('touchstart', onTouchStart, {passive: false});
+        window.addEventListener('touchmove', onTouchMove, {passive: false});
+        window.addEventListener('touchend', handleUp);
+
+        const resizeObserver = new ResizeObserver(entries => {
+            if (!entries || !entries[0] || !chartRef.current) return;
+            const { width, height } = entries[0].contentRect;
+            if (width > 0 && height > 0) {
+                chartRef.current.applyOptions({ width, height });
+                // Ao redimensionar, garante que o preço se ajuste se necessário
+                chartRef.current.priceScale('right').applyOptions({ autoScale: true });
+            }
+        });
+        
+        // Dispara um resize manual inicial para garantir que o gráfico use o espaço disponível
+        const initialWidth = container.clientWidth;
+        const initialHeight = container.clientHeight;
+        if (initialWidth > 0 && initialHeight > 0) {
+            chart.applyOptions({ width: initialWidth, height: initialHeight });
+        }
+        resizeObserver.observe(container);
+
+        return () => {
+            container.removeEventListener('mousedown', onMouseDown);
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', handleUp);
+            container.removeEventListener('touchstart', onTouchStart);
+            window.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('touchend', handleUp);
+            chart.remove(); resizeObserver.disconnect();
+        };
+    }, [chartBgColor, showGrid, upCandleColor, downCandleColor, getTimeFromLogX, getLogicalIndexHover, getHitDrawing]);
+
+    useEffect(() => {
+        if (!chartRef.current || !seriesRef.current || !data || !data.length) return;
+        
+        // Converter tempos para números caso venham como string
+        const validData = data.filter(d => isValidNumber(d.time)).map(d => ({
+            ...d,
+            time: Number(d.time)
+        }));
+        
+        if (validData.length === 0) return;
+        
+        seriesRef.current.setData(validData);
+
+        // 2. Ajuste automático (Fit) e Scroll para o final
+        if (isFollowEnabled && !isDraggingRef.current) {
+            // Se for o primeiro carregamento (ou poucos dados), faz fitContent
+            if (data.length <= 200) {
+                chartRef.current.timeScale().fitContent();
+            }
+            chartRef.current.priceScale('right').applyOptions({ autoScale: true });
+        }
+    }, [data, isFollowEnabled]);
+
+    useEffect(() => {
+        if (!chartRef.current || !data || !data.length) return;
+
+        // Limpar separadores antigos
+        autoSeparatorSeriesRef.current.forEach(s => {
+            try { chartRef.current.removeSeries(s); } catch (e) { }
+        });
+        autoSeparatorSeriesRef.current = [];
+
+        const dayStarts = [];
+        let lastDay = null;
+
+        data.forEach(d => {
+            const date = new Date((d.time + (timezoneOffset * 3600)) * 1000);
+            const currentDay = date.getUTCDate();
+            if (lastDay !== null && currentDay !== lastDay) {
+                dayStarts.push(d.time);
+            }
+            lastDay = currentDay;
+        });
+
+        const style = separatorConfig.style === 'solid' ? LineStyle.Solid : separatorConfig.style === 'dotted' ? LineStyle.Dotted : LineStyle.Dashed;
+
+        dayStarts.forEach(time => {
+            const s = chartRef.current.addSeries(LineSeries, {
+                color: separatorConfig.color,
+                lineWidth: separatorConfig.width,
+                lineStyle: style,
+                lastValueVisible: false,
+                priceLineVisible: false,
+                crosshairMarkerVisible: false,
+                autoscaleInfoProvider: () => null,
+            });
+            // Usamos um intervalo enorme para garantir que cubra todo o gráfico (vertical)
+            // Adicionamos +1 segundo ao segundo ponto para evitar erro de 'duplicate time' no Lightweight Charts
+            s.setData([
+                { time: time, value: -1000000 },
+                { time: time + 1, value: 1000000 }
+            ]);
+            autoSeparatorSeriesRef.current.push(s);
         });
 
         return () => {
-            if (chartContainerRef.current) {
-                chartContainerRef.current.removeEventListener('mousedown', handleMouseDown, true);
-                chartContainerRef.current.removeEventListener('touchstart', handleTouchStart);
-            }
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('touchmove', handleTouchMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-            window.removeEventListener('touchend', handleTouchEnd);
-            resizeObserver.disconnect();
-            chart.remove();
-        };
-    }, []); // Run once on mount
-
-    // Effect to handle dynamic theme changes without re-creating the chart
-    useEffect(() => {
-        if (!chartRef.current || !seriesRef.current) return;
-
-        const isLight = chartBgColor.toLowerCase() === '#ffffff';
-        const dynamicTextColor = isLight ? '#000000' : '#c9d1d9';
-        const gridColor = isLight ? 'rgba(0,0,0,0.1)' : '#21262d';
-
-        chartRef.current.applyOptions({
-            layout: {
-                background: { type: ColorType.Solid, color: chartBgColor },
-                textColor: dynamicTextColor,
-            },
-            grid: {
-                vertLines: { visible: false }, // Force off to prevent native lines creating 12-hour pseudo-separators
-                horzLines: { color: gridColor, visible: showGrid },
-            }
-        });
-
-        seriesRef.current.applyOptions({
-            upColor: upCandleColor,
-            downColor: downCandleColor,
-            wickUpColor: upCandleColor,
-            wickDownColor: downCandleColor,
-            borderUpColor: upCandleColor,
-            borderDownColor: downCandleColor,
-        });
-    }, [chartBgColor, showGrid, upCandleColor, downCandleColor]);
-
-    const lastAskTimeRef = useRef({ lastTime: null, firstTime: null });
-
-    useEffect(() => {
-        if (askSeriesRef.current && askPrice !== null && data && data.length > 0) { // Check Ask Series bounds to prevent crash
-            const deduplicatedData = data; // Assuming 'data' is the source, if 'deduplicatedData' is meant to be a separate filtered array, it needs to be defined.
-            const lastCandle = deduplicatedData[deduplicatedData.length - 1];
-            const firstCandle = deduplicatedData[0];
-
-            if (isValidNumber(askPrice)) {
-                // If the first candle changed, it means the entire dataset was replaced (user changed dates)
-                // We MUST clear out old Ask points to prevent timescale mismatches that crash lightweight-charts
-                if (
-                    lastAskTimeRef.current.lastTime == null ||
-                    firstCandle.time !== lastAskTimeRef.current.firstTime ||
-                    lastCandle.time <= lastAskTimeRef.current.lastTime
-                ) {
-                    // Time reversed, dataset fully replaced, or initializing
-                    if (isValidNumber(lastCandle.time) && isValidNumber(askPrice)) {
-                        askSeriesRef.current.setData([{ time: lastCandle.time, value: askPrice }]);
-                    }
-                } else {
-                    // Normal progression forward tick-by-tick
-                    if (isValidNumber(lastCandle.time) && isValidNumber(askPrice)) {
-                        askSeriesRef.current.update({ time: lastCandle.time, value: askPrice });
-                    }
-                }
-                lastAskTimeRef.current = { lastTime: lastCandle.time, firstTime: firstCandle.time };
-            }
-        }
-    }, [askPrice, data]);
-
-    // Handle Keyboard Deletion
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                if (selectedDrawingId) {
-                    setDrawings(prev => prev.filter(d => d.id !== selectedDrawingId));
-                    setSelectedDrawingId(null);
-                }
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedDrawingId, setDrawings]);
-
-    // Update Separator Options
-    useEffect(() => {
-        if (separatorSeriesRef.current) {
-            const isDotted = separatorConfig.style === 'dotted';
-            const isSolid = separatorConfig.style === 'solid';
-            separatorSeriesRef.current.applyOptions({
-                color: separatorConfig.color,
-                lineWidth: separatorConfig.width,
-                lineStyle: isDotted ? LineStyle.Dotted : isSolid ? LineStyle.Solid : LineStyle.Dashed
+            autoSeparatorSeriesRef.current.forEach(s => {
+                try { chartRef.current.removeSeries(s); } catch (e) { }
             });
-        }
-    }, [separatorConfig]);
+            autoSeparatorSeriesRef.current = [];
+        };
+    }, [data, timezoneOffset, separatorConfig]);
 
-    // Data Update Logic
     useLayoutEffect(() => {
-        if (!seriesRef.current || !chartRef.current) return;
-
-        if (!data || data.length === 0) {
-            seriesRef.current.setData([]);
-            if (separatorSeriesRef.current) separatorSeriesRef.current.setData([]);
-            if (askSeriesRef.current) askSeriesRef.current.setData([]);
-            lastAskTimeRef.current = { lastTime: null, firstTime: null };
-            return;
-        }
-
-        // Filter data to ensure no invalid times reach the series
-        const validData = data.filter(d =>
-            isValidNumber(d.time) && isValidNumber(d.open) && isValidNumber(d.close) &&
-            isValidNumber(d.high) && isValidNumber(d.low)
-        );
-
-        if (validData.length === 0) {
-            seriesRef.current.setData([]);
-            if (separatorSeriesRef.current) separatorSeriesRef.current.setData([]);
-            if (askSeriesRef.current) askSeriesRef.current.setData([]);
-            lastAskTimeRef.current = { lastTime: null, firstTime: null };
-            return;
-        }
-
-        // Only update if data actually changed to avoid render loops
-        seriesRef.current.setData(validData);
-
-        if (separatorSeriesRef.current) {
-            const lineData = [];
-            let isTop = false;
-            let lastPushedTime = -1;
-
-            const pushPoint = (time, value) => {
-                if (time > lastPushedTime) {
-                    lineData.push({ time, value });
-                    lastPushedTime = time;
-                }
-            };
-
-            if (validData.length > 0) {
-                pushPoint(validData[0].time, isTop ? 999999 : -999999);
-            }
-
-            for (let i = 1; i < validData.length; i++) {
-                const prev = validData[i - 1];
-                const curr = validData[i];
-
-                // Forex Standard: Trading day starts at 17:00 EST, which aligns with 00:00 EET (UTC+2 or UTC+3 depending on DST)
-                // MT5 brokers predominantly use EET. We use a fixed MT5 server offset (+2 hours) 
-                // to precisely match the visual Day Boundaries that traders expect.
-                const MT5_SERVER_OFFSET_HOURS = 2; // EET
-                const prevServerSecs = prev.time + (MT5_SERVER_OFFSET_HOURS * 3600);
-                const currServerSecs = curr.time + (MT5_SERVER_OFFSET_HOURS * 3600);
-
-                let isNewPeriod = false;
-
-                // Show day separators for H4 and below (14400s) -> Every 24 hours
-                if (timeframe <= 14400) {
-                    const prevDay = Math.floor(prevServerSecs / 86400);
-                    const currDay = Math.floor(currServerSecs / 86400);
-                    if (currDay !== prevDay) {
-                        isNewPeriod = true;
-                    }
-                } else {
-                    // For Daily charts and above, separate by month
-                    const prevDate = new Date(prevServerSecs * 1000);
-                    const currDate = new Date(currServerSecs * 1000);
-                    if (currDate.getUTCMonth() !== prevDate.getUTCMonth()) {
-                        isNewPeriod = true;
-                    }
-                }
-
-                if (isNewPeriod) {
-                    // Jump from bottom of universe to top of universe between the two candles
-                    // This creates a steep diagonal line that perfectly mimics a vertical separator 
-                    // without injecting fake timestamps that distort the chart.
-                    pushPoint(prev.time, isTop ? 999999 : -999999);
-                    isTop = !isTop;
-                    pushPoint(curr.time, isTop ? 999999 : -999999);
-                }
-            }
-
-            if (validData.length > 1) {
-                pushPoint(validData[validData.length - 1].time, isTop ? 999999 : -999999);
-            }
-            separatorSeriesRef.current.setData(lineData);
-        }
-
-        if (isFollowEnabled) {
-            // If it's the first data load or we are following, fit it
-            if (data.length <= 100) {
-                chartRef.current.timeScale().fitContent();
-            }
-            chartRef.current.timeScale().scrollToPosition(0, false);
-            chartRef.current.priceScale('right').applyOptions({ autoScale: true });
-        }
-    }, [data, isFollowEnabled, timeframe, separatorConfig]);
-
-    // Update Drawings on Chart
-    useLayoutEffect(() => {
-        if (!chartRef.current) return;
-
-        // Clear old drawing series and price lines
-        drawingSeriesRef.current.forEach(s => {
-            try {
-                if (s.priceLine && seriesRef.current) {
-                    seriesRef.current.removePriceLine(s.priceLine);
-                } else if (!s.priceLine && chartRef.current) {
-                    chartRef.current.removeSeries(s);
-                }
-            } catch (e) {
-                console.warn("Could not remove drawing:", e);
-            }
+        if (!chartRef.current || !seriesRef.current) return;
+        drawingSeriesRef.current.forEach(item => {
+            try { if (item.priceLine) seriesRef.current.removePriceLine(item.priceLine); else if (item.series) chartRef.current.removeSeries(item.series); } catch(e){}
         });
         drawingSeriesRef.current = [];
-
-        if (!data || data.length === 0) return;
-        const validData = data.filter(d => d.time != null && !isNaN(d.time) && !isNaN(new Date(d.time * 1000).getTime()));
-
         drawings.forEach(draw => {
             const isSelected = draw.id === selectedDrawingId;
-            const isHovered = draw.id === hoveredDrawingId;
-            const width = isSelected ? 4 : isHovered ? 3 : 2;
-            const baseColor = draw.color || '#58a6ff';
-
+            const width = isSelected ? 4 : 2;
+            const color = draw.color || '#58a6ff';
+            
             if (draw.type === 'horizontal') {
-                const line = seriesRef.current.createPriceLine({
-                    price: draw.price,
-                    color: isSelected ? '#ffffff' : baseColor,
-                    lineWidth: width,
-                    lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Solid,
-                    axisLabelVisible: true,
-                    title: isSelected ? 'Selected' : '',
-                });
-                drawingSeriesRef.current.push({ priceLine: line });
+                const line = seriesRef.current.createPriceLine({ price: draw.price, color, lineWidth: width, lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Solid, axisLabelVisible: true });
+                drawingSeriesRef.current.push({ id: draw.id, priceLine: line });
             } else if (draw.type === 'vertical') {
-                const s = chartRef.current.addSeries(LineSeries, {
-                    color: isSelected ? '#ffffff' : (draw.color || 'rgba(255, 165, 0, 0.8)'),
-                    lineWidth: width,
-                    lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Solid,
-                    crosshairMarkerVisible: false,
-                    lastValueVisible: false,
-                    priceLineVisible: false
-                });
-
-                const timeArr = validData.map(d => d.time);
-                if (timeArr.length > 0 && draw.time != null && !isNaN(draw.time)) {
-                    let closestTime = timeArr.reduce((prev, curr) => Math.abs(curr - draw.time) < Math.abs(prev - draw.time) ? curr : prev, timeArr[0]);
-
-                    if (closestTime != null && !isNaN(closestTime)) {
-                        // Extract global min/max price constraints
-                        const allPrices = validData.map(d => [d.high, d.low]).flat().filter(p => p != null && !isNaN(p));
-                        if (allPrices.length > 0) {
-                            const minP = Math.min(...allPrices);
-                            const maxP = Math.max(...allPrices);
-                            s.setData([
-                                { time: closestTime, value: minP * 0.5 }, // stretch down
-                                { time: closestTime + 1, value: maxP * 1.5 }  // stretch up
-                            ]);
-                            drawingSeriesRef.current.push(s);
-                        }
-                    }
+                const s = chartRef.current.addSeries(LineSeries, { color, lineWidth: width, lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Solid, crosshairMarkerVisible: true, lastValueVisible: false, priceLineVisible: false, autoscaleInfoProvider: () => null });
+                const allPrices = dataRef.current.map(d => [d.high, d.low]).flat().filter(isValidNumber);
+                if (allPrices.length) {
+                    s.setData([{ time: draw.time, value: Math.min(...allPrices) * 0.5 }, { time: draw.time, value: Math.max(...allPrices) * 1.5 }]);
+                    drawingSeriesRef.current.push({ id: draw.id, series: s });
                 }
             } else if (draw.type === 'trend') {
-                const s = chartRef.current.addSeries(LineSeries, {
-                    color: isSelected ? '#ffffff' : baseColor,
-                    lineWidth: width,
-                    lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Solid,
-                    crosshairMarkerVisible: false,
-                    lastValueVisible: false,
-                    priceLineVisible: false
-                });
-
-                let p1 = { time: draw.start.time, value: draw.start.price };
-                let p2 = { time: draw.end.time, value: draw.end.price };
-
-                if (p1.time === p2.time) {
-                    p2.time += 0.001; // Prevent div zero
-                }
-
-                // Mathematical Linear Interpolation for Timeframes: Y = m*X + b
-                const slope_m = (p2.value - p1.value) / (p2.time - p1.time);
-                const intercept_b = p1.value - (slope_m * p1.time);
-
-                const minT = Math.min(draw.start.time, draw.end.time);
-                const lineDataMap = new Map();
-
-                for (let i = 0; i < validData.length; i++) {
-                    const t = validData[i].time;
-                    if (t >= minT && t != null && !isNaN(t)) {
-                        const val = (slope_m * t) + intercept_b;
-                        if (val != null && !isNaN(val)) {
-                            lineDataMap.set(t, { time: t, value: val });
-                        }
-                    }
-                }
-
-                if (lineDataMap.size > 0) {
-                    const sortedData = Array.from(lineDataMap.values()).sort((a, b) => a.time - b.time);
-
-                    // CRITICAL FIX: To prevent candles from disappearing due to extreme scale, 
-                    // we clamp the trend line values to a reasonable range around the current data view.
-                    const allPrices = validData.map(d => [d.high, d.low]).flat().filter(p => !isNaN(p));
-                    const minVisible = Math.min(...allPrices);
-                    const maxVisible = Math.max(...allPrices);
-                    const padding = (maxVisible - minVisible) * 5;
-
-                    const clampedData = sortedData.map(d => ({
-                        time: d.time,
-                        value: Math.max(minVisible - padding, Math.min(maxVisible + padding, d.value))
-                    }));
-
-                    if (clampedData.every(d => d.time != null && !isNaN(d.time) && d.value != null && !isNaN(d.value))) {
-                        s.setData(clampedData);
-                        drawingSeriesRef.current.push(s);
+                const s = chartRef.current.addSeries(LineSeries, { color, lineWidth: width, lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Solid, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, autoscaleInfoProvider: () => null });
+                const slope = (draw.end.price - draw.start.price) / (draw.end.time - draw.start.time || 0.001);
+                const intercept = draw.start.price - (slope * draw.start.time);
+                const vData = dataRef.current;
+                if (vData.length) {
+                    s.setData([{ time: vData[0].time, value: slope * vData[0].time + intercept }, { time: vData[vData.length - 1].time, value: slope * vData[vData.length - 1].time + intercept }]);
+                    drawingSeriesRef.current.push({ id: draw.id, series: s });
+                    if (isSelected) {
+                        s.setMarkers([{ time: draw.start.time, position: 'inBar', color: '#fff', shape: 'square', size: 8 },
+                                      { time: (draw.start.time + draw.end.time) / 2, position: 'inBar', color: '#fff', shape: 'square', size: 8 },
+                                      { time: draw.end.time, position: 'inBar', color: '#fff', shape: 'square', size: 8 }]);
                     }
                 }
             } else if (draw.type === 'fib') {
                 const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
                 const diff = draw.end.price - draw.start.price;
                 const minT = Math.min(draw.start.time, draw.end.time);
-
+                const vData = dataRef.current;
                 levels.forEach(lvl => {
-                    const s = chartRef.current.addSeries(LineSeries, {
-                        color: isSelected ? '#ffffff' : (draw.color || (lvl === 0.5 ? 'rgba(248, 81, 73, 0.6)' : 'rgba(139, 148, 158, 0.6)')),
-                        lineWidth: isSelected ? 2 : 1,
-                        lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Dotted,
-                        title: `${(lvl * 100).toFixed(1)}% `,
-                        lastValueVisible: false,
-                        priceLineVisible: false
-                    });
-
+                    const s = chartRef.current.addSeries(LineSeries, { color: draw.color || (lvl === 0.5 ? 'rgba(248,81,73,0.6)' : 'rgba(139,148,158,0.6)'), lineWidth: isSelected ? 2 : 1, lineStyle: isSelected ? LineStyle.Dashed : LineStyle.Dotted, lastValueVisible: false, priceLineVisible: false, autoscaleInfoProvider: () => null });
                     const lvlPrice = draw.start.price + diff * lvl;
-                    const fibDataMap = new Map();
-
-                    for (let i = 0; i < validData.length; i++) {
-                        const t = validData[i].time;
-                        if (t >= minT && t != null && !isNaN(t) && lvlPrice != null && !isNaN(lvlPrice)) {
-                            fibDataMap.set(t, { time: t, value: lvlPrice });
-                        }
-                    }
-
-                    if (fibDataMap.size > 0) {
-                        const sortedData = Array.from(fibDataMap.values()).sort((a, b) => a.time - b.time);
-                        if (sortedData.every(d => d.time != null && !isNaN(d.time) && d.value != null && !isNaN(d.value))) {
-                            s.setData(sortedData);
-                            drawingSeriesRef.current.push(s);
-                        } else {
-                            console.error("Fib Line invalid data array:", sortedData);
-                        }
+                    const fData = vData.filter(d => d.time >= minT).map(d => ({ time: d.time, value: lvlPrice }));
+                    if (fData.length) {
+                        s.setData(fData);
+                        drawingSeriesRef.current.push({ id: draw.id, series: s });
                     }
                 });
             }
         });
 
-        // --- TRADE LINES RENDERING ---
-        console.log(`[Chart] Rendering trade lines for ${positions.length} positions on ${activeSymbol} `);
+        // --- POSITION TRADE LINES ---
         positions.forEach(pos => {
-            // Only draw lines for the active symbol being displayed
             if (activeSymbol && pos.symbol.toUpperCase() !== activeSymbol.toUpperCase()) return;
-
-            if (!data || data.length === 0) return;
-
-            const digits = 5;
-            const isBuy = pos.type === 'BUY';
-
-            // 1. Entry Line
-            const entryColor = isBuy ? '#00cc88' : '#ff4444'; // Green for BUY, Red for SELL
+            
+            // Entry Line
             const entryLine = seriesRef.current.createPriceLine({
                 price: pos.openPrice,
-                color: entryColor,
+                color: pos.type === 'BUY' ? '#00cc88' : '#ff4444',
                 lineWidth: 1,
                 lineStyle: LineStyle.Dashed,
                 axisLabelVisible: true,
-                title: `${pos.type} ${pos.lots.toFixed(2)} `,
+                title: `${pos.type} ${pos.lots.toFixed(2)}`
             });
             drawingSeriesRef.current.push({ priceLine: entryLine });
 
+            // SL Line
             if (pos.sl) {
                 const slLine = seriesRef.current.createPriceLine({
                     price: pos.sl,
-                    color: '#ff4444', // Brighter red
+                    color: '#ff4444',
                     lineWidth: 2,
                     lineStyle: LineStyle.Dashed,
                     axisLabelVisible: true,
-                    title: `SL: ${pos.sl.toFixed(digits)} `,
+                    title: `SL: ${pos.sl.toFixed(5)}`
                 });
                 drawingSeriesRef.current.push({ priceLine: slLine });
             }
 
+            // TP Line
             if (pos.tp) {
                 const tpLine = seriesRef.current.createPriceLine({
                     price: pos.tp,
-                    color: '#00cc88', // Brighter green
+                    color: '#00cc88',
                     lineWidth: 2,
                     lineStyle: LineStyle.Dashed,
                     axisLabelVisible: true,
-                    title: `TP: ${pos.tp.toFixed(digits)} `,
+                    title: `TP: ${pos.tp.toFixed(5)}`
                 });
                 drawingSeriesRef.current.push({ priceLine: tpLine });
             }
         });
-    }, [drawings, timeframe, data, positions, activeSymbol]);
+    }, [drawings, selectedDrawingId, positions, activeSymbol]);
 
-
-    const handleCenter = () => {
-        if (!chartRef.current) return;
-        chartRef.current.timeScale().fitContent();
-        chartRef.current.priceScale('right').applyOptions({ autoScale: true });
-    };
-
-    // EFFECT:    // Update Indicators
-    useLayoutEffect(() => {
-        if (!chartRef.current) return;
-
-        if (!data || data.length === 0) {
-            Object.values(indicatorSeriesRef.current).forEach(s => s.setData([]));
-            return;
-        }
-
-        // 1. Remove series that are no longer in the indicators list
-        Object.keys(indicatorSeriesRef.current).forEach(id => {
-            if (!indicators.find(ind => ind.id.toString() === id)) {
-                try {
-                    chartRef.current.removeSeries(indicatorSeriesRef.current[id]);
-                    delete indicatorSeriesRef.current[id];
-                } catch (e) {
-                    console.error("Error removing indicator series:", e);
-                }
-            }
-        });
-
-        // 2. Add/Update series for current indicators
-        indicators.forEach(ind => {
-            let s = indicatorSeriesRef.current[ind.id];
-            if (!s) {
-                s = chartRef.current.addLineSeries({
-                    color: ind.color,
-                    lineWidth: 2,
-                    priceScaleId: 'right',
-                    title: `${ind.type} (${ind.period})`,
-                });
-                indicatorSeriesRef.current[ind.id] = s;
-            }
-
-            // Calculate & Update only if we have enough data
-            if (data.length < ind.period) {
-                s.setData([]);
-                return;
-            }
-            if (ind.type === 'SMA') {
-                const smaData = [];
-                for (let i = ind.period - 1; i < data.length; i++) {
-                    const slice = data.slice(i - ind.period + 1, i + 1);
-                    const sum = slice.reduce((acc, curr) => acc + (curr.close || 0), 0);
-                    const val = sum / ind.period;
-                    if (isValidNumber(val) && isValidNumber(data[i].time)) {
-                        smaData.push({
-                            time: data[i].time,
-                            value: val
-                        });
-                    }
-                }
-                s.setData(smaData);
-            } else if (ind.type === 'EMA') {
-                const emaData = [];
-                const k = 2 / (ind.period + 1);
-                let prevEma = data[0].close || 0;
-
-                for (let i = 0; i < data.length; i++) {
-                    const currentEma = i === 0 ? prevEma : ((data[i].close || 0) - prevEma) * k + prevEma;
-                    if (i >= ind.period - 1) {
-                        if (isValidNumber(currentEma) && isValidNumber(data[i].time)) {
-                            emaData.push({
-                                time: data[i].time,
-                                value: currentEma
-                            });
-                        }
-                    }
-                    prevEma = currentEma;
-                }
-                s.setData(emaData);
-            }
-        });
-    }, [indicators, data]);
+    const handleCenter = () => { if (chartRef.current) { chartRef.current.timeScale().fitContent(); chartRef.current.priceScale('right').applyOptions({ autoScale: true }); } };
 
     return (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            <div
-                ref={chartContainerRef}
-                style={{ width: '100%', height: '100%' }}
-            />
+            <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }} />
             {activeTool && (
-                <div style={{
-                    position: 'absolute',
-                    top: '10px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'var(--accent-color)',
-                    padding: '5px 15px',
-                    borderRadius: '20px',
-                    fontSize: '0.8rem',
-                    color: 'white',
-                    zIndex: 1000,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                }}>
+                <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', background: 'var(--accent-color)', padding: '5px 15px', borderRadius: '20px', fontSize: '0.8rem', color: 'white', zIndex: 1000 }}>
                     Tool Active: {activeTool.toUpperCase()} {pendingDrawing ? '(Click end point)' : '(Click start point)'}
                 </div>
+            )}
+            {selectedDrawingId && (
+                <button onClick={() => { setDrawings(prev => prev.filter(d => d.id !== selectedDrawingId)); setSelectedDrawingId(null); }} style={{ position: 'absolute', top: '10px', right: '70px', background: '#ef5350', color: 'white', border: 'none', borderRadius: '4px', padding: '5px 10px', cursor: 'pointer', zIndex: 1000 }}>
+                    EXCLUIR [DEL]
+                </button>
             )}
         </div>
     );

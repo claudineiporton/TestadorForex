@@ -16,6 +16,7 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
         candlesMap,
         activeSymbol,
         setActiveSymbol,
+        selectedPairs,
         isRunning,
         setIsRunning,
         speed,
@@ -26,6 +27,10 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
         openPosition,
         updatePosition,
         closePosition,
+        drawingsMap,
+        setDrawingsMap,
+        addSymbolToSession,
+        removeSymbolFromSession,
         isLoadingData
     } = useSessionEngine(sessionConfig, onSaveSession);
 
@@ -41,15 +46,14 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
     const [tp, setTp] = useState('');
     const [activeTool, setActiveTool] = useState(null);
     const [selectedColor, setSelectedColor] = useState('#58a6ff');
-    const [sepColor, setSepColor] = useState('#000000');
+    const [sepColor, setSepColor] = useState('#444c56');
     const [sepWidth, setSepWidth] = useState(1);
     const [sepStyle, setSepStyle] = useState('dashed');
     const [showSettings, setShowSettings] = useState(false);
     const [indicators, setIndicators] = useState([]);
     const [activeBottomTab, setActiveBottomTab] = useState('Trade');
 
-    // Need to store drawings per symbol ideally, but for now we keep it simple
-    const [drawingsMap, setDrawingsMap] = useState({});
+    // Use drawings from engine state
     const drawings = drawingsMap[activeSymbol] || [];
     const activeSymbolRef = useRef(activeSymbol);
     React.useEffect(() => {
@@ -63,7 +67,7 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
             const updatedDrawings = typeof newDrawings === 'function' ? newDrawings(currentDrawings) : newDrawings;
             return { ...prevMap, [sym]: updatedDrawings };
         });
-    }, []);
+    }, [setDrawingsMap]);
 
     const [timezoneOffset, setTimezoneOffset] = useState(-3);
     const [isFollowEnabled, setIsFollowEnabled] = useState(true);
@@ -317,6 +321,48 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                     </button>
                 </div>
                 <div className="mt5-sidebar-section">
+                    <div className="mt5-sidebar-header">Market Watch</div>
+                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                                    <th style={{ padding: '8px', textAlign: 'left' }}>Symbol</th>
+                                    <th style={{ padding: '8px', textAlign: 'right' }}>Bid</th>
+                                    <th style={{ padding: '8px', textAlign: 'right' }}>Ask</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.keys(SYMBOLS).map(sym => {
+                                    const isSelected = sessionConfig.selectedPairs.includes(sym);
+                                    const bid = bidPrices[sym];
+                                    const ask = askPrices[sym];
+                                    const isActive = activeSymbol === sym;
+                                    
+                                    return (
+                                        <tr 
+                                            key={sym} 
+                                            onDoubleClick={() => addSymbolToSession(sym)}
+                                            style={{ 
+                                                cursor: 'pointer',
+                                                background: isActive ? 'rgba(88, 166, 255, 0.1)' : 'transparent',
+                                                borderBottom: '1px solid #21262d',
+                                                opacity: isSelected ? 1 : 0.7,
+                                                userSelect: 'none'
+                                            }}
+                                            title="Duplo clique para abrir"
+                                        >
+                                            <td style={{ padding: '8px', fontWeight: 'bold', color: isActive ? 'var(--accent-color)' : 'white' }}>{sym}</td>
+                                            <td style={{ padding: '8px', textAlign: 'right', color: 'var(--success-color)' }}>{bid?.toFixed(SYMBOLS[sym].digits) || '-'}</td>
+                                            <td style={{ padding: '8px', textAlign: 'right', color: 'var(--error-color)' }}>{ask?.toFixed(SYMBOLS[sym].digits) || '-'}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="mt5-sidebar-section">
                     <div className="mt5-sidebar-header">Navigator</div>
                     <div className="mt5-list-item" onClick={() => setShowSettings(!showSettings)}>⚙️ Chart Properties</div>
 
@@ -352,21 +398,33 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                             <button onClick={() => setDrawings([])} style={{ flex: 1, padding: '6px', background: '#21262d', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.7rem' }}>CLEAR DRAWINGS</button>
                         </div>
                     )}
-                    <div className="mt5-one-click-panel" style={{ position: 'relative', top: 'auto', right: 'auto', bottom: 'auto', transform: 'none', boxShadow: 'none', background: 'transparent', padding: 0, border: 'none', width: '100%', justifyContent: 'center', marginTop: '5px' }}>
-                        <div className="mt5-btn sell" onClick={() => {
-                            const targets = calculatePriceFromPoints('SELL', sl) || {};
-                            openPosition('SELL', lotSize, targets.sl, targets.tp);
-                        }}>
-                            <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>SELL</span>
-                            <span>{currentPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                    <div className="mt5-one-click-panel" style={{ position: 'relative', top: 'auto', right: 'auto', bottom: 'auto', transform: 'none', boxShadow: 'none', background: 'transparent', padding: '0', border: 'none', width: '100%', display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
+                        <div style={{ display: 'flex', gap: '2px', width: '100%' }}>
+                            <div className="mt5-btn sell" onClick={() => {
+                                const targets = calculatePriceFromPoints('SELL', sl) || {};
+                                openPosition('SELL', lotSize, targets.sl, targets.tp);
+                            }} style={{ flex: 1 }}>
+                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>SELL</span>
+                                <span>{currentPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                            </div>
+                            <input type="number" min="0" className="mt5-lot-selector" value={lotSize} step="0.01" onChange={(e) => setLotSize(Math.max(0, Number(e.target.value)))} onClick={(e) => e.stopPropagation()} style={{ margin: '0', width: '60px' }} />
+                            <div className="mt5-btn buy" onClick={() => {
+                                const targets = calculatePriceFromPoints('BUY', sl) || {};
+                                openPosition('BUY', lotSize, targets.sl, targets.tp);
+                            }} style={{ flex: 1 }}>
+                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>BUY</span>
+                                <span>{askPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                            </div>
                         </div>
-                        <input type="number" min="0" className="mt5-lot-selector" value={lotSize} step="0.01" onChange={(e) => setLotSize(Math.max(0, Number(e.target.value)))} onClick={(e) => e.stopPropagation()} />
-                        <div className="mt5-btn buy" onClick={() => {
-                            const targets = calculatePriceFromPoints('BUY', sl) || {};
-                            openPosition('BUY', lotSize, targets.sl, targets.tp);
-                        }}>
-                            <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>BUY</span>
-                            <span>{askPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>SL (pts)</label>
+                                <input type="number" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="0" style={{ height: '24px', fontSize: '0.7rem', padding: '2px 5px', textAlign: 'center' }} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>TP (pts)</label>
+                                <input type="number" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="0" style={{ height: '24px', fontSize: '0.7rem', padding: '2px 5px', textAlign: 'center' }} />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -424,12 +482,14 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                 </div>
 
                 {/* TAB BAR FOR MULTIPLE CHARTS (MOVED TO BOTTOM) */}
-                <div style={{ display: 'flex', background: '#0d1117', borderTop: '1px solid #30363d' }}>
-                    {sessionConfig.selectedPairs.map(symbol => (
+                <div style={{ display: 'flex', background: '#0d1117', borderTop: '1px solid #30363d', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+                    {selectedPairs.map(symbol => (
                         <div
                             key={symbol}
                             onClick={() => setActiveSymbol(symbol)}
                             style={{
+                                display: 'flex',
+                                alignItems: 'center',
                                 padding: '8px 20px',
                                 fontSize: '0.8rem',
                                 fontWeight: 'bold',
@@ -437,15 +497,50 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                                 background: activeSymbol === symbol ? '#161b22' : 'transparent',
                                 borderRight: '1px solid #30363d',
                                 color: activeSymbol === symbol ? 'var(--accent-color)' : '#8b949e',
-                                borderBottom: activeSymbol === symbol ? '2px solid var(--accent-color)' : '2px solid transparent'
+                                borderBottom: activeSymbol === symbol ? '2px solid var(--accent-color)' : '2px solid transparent',
+                                userSelect: 'none'
                             }}
                         >
-                            {symbol}
-                            {bidPrices[symbol] && (
-                                <span style={{ marginLeft: '10px', fontSize: '0.7rem', color: 'white', fontWeight: 'normal' }}>
-                                    {bidPrices[symbol].toFixed(SYMBOLS[symbol]?.digits || 5)}
-                                </span>
-                            )}
+                            <span>
+                                {symbol}
+                                {bidPrices[symbol] && (
+                                    <span style={{ marginLeft: '10px', fontSize: '0.7rem', color: 'white', fontWeight: 'normal' }}>
+                                        {bidPrices[symbol].toFixed(SYMBOLS[symbol]?.digits || 5)}
+                                    </span>
+                                )}
+                            </span>
+                            <span 
+                                style={{ 
+                                    marginLeft: '12px', 
+                                    opacity: 0.5, 
+                                    fontSize: '1.1rem',
+                                    fontWeight: 'bold',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '18px',
+                                    height: '18px',
+                                    borderRadius: '3px',
+                                    transition: 'all 0.2s',
+                                    marginTop: '-2px'
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeSymbolFromSession(symbol);
+                                }}
+                                onMouseOver={(e) => {
+                                    e.currentTarget.style.opacity = 1;
+                                    e.currentTarget.style.background = 'rgba(239, 83, 80, 0.2)';
+                                    e.currentTarget.style.color = 'var(--error-color)';
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.opacity = 0.5;
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.color = 'inherit';
+                                }}
+                            >
+                                ×
+                            </span>
                         </div>
                     ))}
                 </div>

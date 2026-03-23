@@ -1,9 +1,6 @@
 const DB_NAME = 'ForexSimulatorDB';
 const DB_VERSION = 1;
 
-/**
- * Native IndexedDB Implementation without external dependencies.
- */
 export const initDB = () => {
     return new Promise((resolve, reject) => {
         const request = window.indexedDB.open(DB_NAME, DB_VERSION);
@@ -34,7 +31,7 @@ export const saveHistoricalData = async (symbol, timeframe, candles) => {
         const store = tx.objectStore('candles');
 
         tx.oncomplete = () => {
-            console.log(`[Storage] Successfully saved/upserted ${candles.length} candles for ${symbol}`);
+                console.log(`Successfully saved/upserted ${candles.length} candles for ${symbol}`);
             resolve();
         };
         tx.onerror = (e) => reject(e.target.error);
@@ -146,7 +143,7 @@ export const clearHistoricalData = async (symbol, timeframe) => {
                 deletedCount++;
                 cursor.continue();
             } else {
-                console.log(`[Storage] Cleared ${deletedCount} records for ${symbol}`);
+                console.log(`Cleared ${deletedCount} records for ${symbol}`);
                 resolve(deletedCount);
             }
         };
