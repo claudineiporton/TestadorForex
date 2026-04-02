@@ -356,18 +356,22 @@ button:hover {
     flex-shrink: 0;
   }
 
-  /* One-Click Panel Special Handling for Mobile (MOVED TO LEFT TO FREE UP PRICE SCALE) */
+  /* One-Click Panel Forced Visibility for Mobile */
   .mt5-one-click-panel {
-    top: 5px !important;
-    left: 5px !important;
+    position: fixed !important; /* Fixed in relation to the viewport */
+    top: 10px !important;
+    left: 10px !important;
     right: auto !important;
     bottom: auto !important;
     transform: scale(0.85);
     transform-origin: top left;
-    background: rgba(22, 27, 34, 0.95);
+    background: rgba(22, 27, 34, 0.98) !important;
     backdrop-filter: blur(8px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    z-index: 999;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    z-index: 9999999 !important;
+    border: 1px solid var(--accent-color) !important;
+    display: flex !important;
+    pointer-events: auto !important;
   }
 
   .mobile-only-sim-controls {
@@ -387,13 +391,10 @@ button:hover {
     .mt5-one-click-panel {
       transform: scale(0.65);
       top: auto !important;
-      bottom: 45px !important; 
+      bottom: 50px !important; /* Global viewport bottom */
       left: 10px !important;
       right: auto !important;
       transform-origin: bottom left;
-      z-index: 999999 !important;
-      background: rgba(22, 27, 34, 0.98) !important;
-      border: 1px solid var(--accent-color) !important;
     }
     .main-content {
       min-height: auto;
