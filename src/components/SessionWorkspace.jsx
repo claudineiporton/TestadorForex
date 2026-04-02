@@ -398,35 +398,6 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                             <button onClick={() => setDrawings([])} style={{ flex: 1, padding: '6px', background: '#21262d', color: 'white', border: 'none', borderRadius: '4px', fontSize: '0.7rem' }}>CLEAR DRAWINGS</button>
                         </div>
                     )}
-                    <div className="mt5-one-click-panel" style={{ position: 'relative', top: 'auto', right: 'auto', bottom: 'auto', transform: 'none', boxShadow: 'none', background: 'transparent', padding: '0', border: 'none', width: '100%', display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
-                        <div style={{ display: 'flex', gap: '2px', width: '100%' }}>
-                            <div className="mt5-btn sell" onClick={() => {
-                                const targets = calculatePriceFromPoints('SELL', sl) || {};
-                                openPosition('SELL', lotSize, targets.sl, targets.tp);
-                            }} style={{ flex: 1 }}>
-                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>SELL</span>
-                                <span>{currentPrice?.toFixed(symbolConfig?.digits || 5)}</span>
-                            </div>
-                            <input type="number" min="0" className="mt5-lot-selector" value={lotSize} step="0.01" onChange={(e) => setLotSize(Math.max(0, Number(e.target.value)))} onClick={(e) => e.stopPropagation()} style={{ margin: '0', width: '60px' }} />
-                            <div className="mt5-btn buy" onClick={() => {
-                                const targets = calculatePriceFromPoints('BUY', sl) || {};
-                                openPosition('BUY', lotSize, targets.sl, targets.tp);
-                            }} style={{ flex: 1 }}>
-                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>BUY</span>
-                                <span>{askPrice?.toFixed(symbolConfig?.digits || 5)}</span>
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>SL (pts)</label>
-                                <input type="number" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="0" style={{ height: '24px', fontSize: '0.7rem', padding: '2px 5px', textAlign: 'center' }} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>TP (pts)</label>
-                                <input type="number" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="0" style={{ height: '24px', fontSize: '0.7rem', padding: '2px 5px', textAlign: 'center' }} />
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div className="card" style={{ padding: '10px', marginTop: 'auto' }}>
@@ -479,6 +450,37 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                         indicators={indicators}
                         isFollowEnabled={isFollowEnabled}
                     />
+
+                    {/* ONE-CLICK PANEL (FLOATING OVER CHART) */}
+                    <div className="mt5-one-click-panel">
+                        <div style={{ display: 'flex', gap: '2px', width: '100%', marginBottom: '1px' }}>
+                            <div className="mt5-btn sell" onClick={() => {
+                                const targets = calculatePriceFromPoints('SELL', sl) || {};
+                                openPosition('SELL', lotSize, targets.sl, targets.tp);
+                            }}>
+                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>SELL</span>
+                                <span>{currentPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                            </div>
+                            <input type="number" min="0" className="mt5-lot-selector" value={lotSize} step="0.01" onChange={(e) => setLotSize(Math.max(0, Number(e.target.value)))} onClick={(e) => e.stopPropagation()} />
+                            <div className="mt5-btn buy" onClick={() => {
+                                const targets = calculatePriceFromPoints('BUY', sl) || {};
+                                openPosition('BUY', lotSize, targets.sl, targets.tp);
+                            }}>
+                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>BUY</span>
+                                <span>{askPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>SL (pts)</label>
+                                <input type="number" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="0" style={{ height: '28px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>TP (pts)</label>
+                                <input type="number" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="0" style={{ height: '28px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* TAB BAR FOR MULTIPLE CHARTS (MOVED TO BOTTOM) */}
