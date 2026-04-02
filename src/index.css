@@ -356,14 +356,14 @@ button:hover {
     flex-shrink: 0;
   }
 
-  /* One-Click Panel Special Handling for Mobile */
+  /* One-Click Panel Special Handling for Mobile (MOVED TO LEFT TO FREE UP PRICE SCALE) */
   .mt5-one-click-panel {
     top: 5px !important;
-    right: 5px !important;
-    left: auto !important;
+    left: 5px !important;
+    right: auto !important;
     bottom: auto !important;
     transform: scale(0.85);
-    transform-origin: top right;
+    transform-origin: top left;
     background: rgba(22, 27, 34, 0.95);
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
@@ -387,7 +387,8 @@ button:hover {
     .mt5-one-click-panel {
       transform: scale(0.65);
       top: 2px !important;
-      right: 2px !important;
+      left: 2px !important;
+      right: auto !important;
     }
     .main-content {
       min-height: auto;
