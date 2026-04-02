@@ -387,13 +387,17 @@ button:hover {
     .mt5-one-click-panel {
       transform: scale(0.65);
       top: auto !important;
-      bottom: 40px !important; /* Just above the footer tabs on landscape */
-      left: 2px !important;
+      bottom: 45px !important; 
+      left: 10px !important;
       right: auto !important;
       transform-origin: bottom left;
+      z-index: 999999 !important;
+      background: rgba(22, 27, 34, 0.98) !important;
+      border: 1px solid var(--accent-color) !important;
     }
     .main-content {
       min-height: auto;
+      overflow: visible !important;
     }
   }
 }
