@@ -51,6 +51,7 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
     const [sepStyle, setSepStyle] = useState('dashed');
     const [showSettings, setShowSettings] = useState(false);
     const [indicators, setIndicators] = useState([]);
+    const [activeBottomTab, setActiveBottomTab] = useState('Trade');
     const [isTradePanelVisible, setIsTradePanelVisible] = useState(true);
     const drawings = drawingsMap[activeSymbol] || [];
     const activeSymbolRef = useRef(activeSymbol);
