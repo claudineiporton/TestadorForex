@@ -209,6 +209,11 @@ const TradingChart = forwardRef(({
                 width: 80, // Wider for mobile touch
                 borderVisible: false,
                 alignLabels: true,
+                autoScale: true,
+                scaleMargins: {
+                    top: 0.2, // Leave 20% space at top
+                    bottom: 0.3, // Leave 30% space at bottom to "raise" candles
+                },
             },
             handleScroll: {
                 vertTouchDrag: true,
@@ -455,14 +460,20 @@ const TradingChart = forwardRef(({
         seriesRef.current.setData(validData);
 
         // --- AUTO SCALE LOGIC ---
-        // We only force autoScale if follow is enabled AND the user isn't interacting
         if (isFollowEnabled) {
-            // Note: We use a small timeout or check to see if data length is small
+            // Force auto-scale and center if following is enabled
+            chartRef.current.priceScale('right').applyOptions({ 
+                autoScale: true 
+            });
             if (data.length <= 200) {
                 chartRef.current.timeScale().fitContent();
             }
-            // Instead of force-resetting every time, we let it be automatic
-            chartRef.current.priceScale('right').applyOptions({ autoScale: true });
+        } else {
+            // Manual mode: Allow total freedom to pan vertically by disabling strict auto-scale
+            // This lets the user move candles UP and DOWN without them bouncing back
+            chartRef.current.priceScale('right').applyOptions({ 
+                autoScale: false 
+            });
         }
     }, [data, isFollowEnabled]);
 
