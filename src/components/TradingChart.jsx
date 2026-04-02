@@ -205,6 +205,12 @@ const TradingChart = forwardRef(({
             },
             grid: { vertLines: { visible: false }, horzLines: { color: gridColor, visible: showGrid } },
             width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight,
+            handleScroll: {
+                vertTouchDrag: true,
+                horzTouchDrag: true,
+                mouseWheel: true,
+                pressedMouseMove: true,
+            },
             timeScale: { rightOffset: 150, barSpacing: 10, fixLeftEdge: true, timeVisible: true }
         });
         const series = chart.addSeries(CandlestickSeries, {

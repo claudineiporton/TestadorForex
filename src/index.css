@@ -389,18 +389,17 @@ button:hover {
       overflow: hidden;
     }
     .mt5-one-click-panel {
-      transform: scale(0.75);
-      top: auto !important;
-      bottom: 35px !important; /* Flush with bottom tabs */
-      left: 0 !important;
-      right: 0 !important;
-      margin: 0 auto;
-      width: fit-content;
-      transform-origin: bottom center;
-      border-radius: 8px 8px 0 0 !important;
-      border: 1px solid var(--border-color) !important;
-      border-bottom: none !important;
-      box-shadow: 0 -5px 15px rgba(0,0,0,0.3) !important;
+      transform: scale(0.65);
+      top: 5px !important;
+      left: 5px !important;
+      bottom: auto !important;
+      right: auto !important;
+      transform-origin: top left;
+      border-radius: 6px !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      background: rgba(22, 27, 34, 0.85) !important;
+      backdrop-filter: blur(10px) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
     }
     .main-content {
       min-height: auto;
