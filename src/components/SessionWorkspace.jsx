@@ -459,22 +459,26 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                                     onClick={() => setIsTradePanelVisible(true)}
                                     style={{ 
                                         position: 'fixed', 
-                                        bottom: '60px', 
+                                        bottom: '40px', 
                                         left: '10px', 
-                                        padding: '0 15px',
-                                        height: '40px', 
-                                        borderRadius: '20px', 
+                                        padding: '0 12px',
+                                        height: '32px', 
+                                        width: 'auto',
+                                        minWidth: '120px',
+                                        maxWidth: '180px',
+                                        borderRadius: '16px', 
                                         background: 'var(--accent-color)', 
                                         color: 'white', 
                                         border: 'none', 
                                         boxShadow: '0 4px 15px rgba(0,0,0,0.5)', 
                                         zIndex: 1000000,
-                                        fontSize: '0.8rem',
+                                        fontSize: '0.65rem',
                                         fontWeight: 'bold',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        gap: '5px'
+                                        gap: '5px',
+                                        whiteSpace: 'nowrap'
                                     }}
                                 >
                                     📊 ABRIR OPERAÇÕES
