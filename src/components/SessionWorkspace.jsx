@@ -460,54 +460,71 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                                     style={{ 
                                         position: 'fixed', 
                                         bottom: '60px', 
-                                        left: '20px', 
-                                        width: '50px', 
-                                        height: '50px', 
-                                        borderRadius: '50%', 
+                                        left: '10px', 
+                                        padding: '0 15px',
+                                        height: '40px', 
+                                        borderRadius: '20px', 
                                         background: 'var(--accent-color)', 
                                         color: 'white', 
                                         border: 'none', 
                                         boxShadow: '0 4px 15px rgba(0,0,0,0.5)', 
                                         zIndex: 1000000,
-                                        fontSize: '1.2rem',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 'bold',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        gap: '5px'
                                     }}
                                 >
-                                    📊
+                                    📊 ABRIR OPERAÇÕES
                                 </button>
                             ) : (
                                 <div className="mt5-one-click-panel">
                                     {/* Simulation Controls */}
-                                    <div className="mobile-only-sim-controls" style={{ display: 'flex', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #30363d' }}>
+                                    <div className="mobile-only-sim-controls" style={{ display: 'flex', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #30363d', alignItems: 'center' }}>
+                                        <div style={{ flex: 1, display: 'flex', gap: '5px' }}>
+                                            <button 
+                                                onClick={handleStartSimulation} 
+                                                disabled={isLoadingData} 
+                                                style={{ 
+                                                    flex: 1, 
+                                                    height: '32px', 
+                                                    background: isRunning ? 'var(--error-color)' : 'var(--success-color)', 
+                                                    fontSize: '0.7rem', 
+                                                    fontWeight: 'bold',
+                                                    marginTop: 0
+                                                }}
+                                            >
+                                                {isRunning ? 'PAUSE' : 'START'}
+                                            </button>
+                                            <select 
+                                                value={speed} 
+                                                onChange={(e) => setSpeed(Number(e.target.value))} 
+                                                style={{ width: '55px', height: '32px', fontSize: '0.7rem', padding: '0 2px', margin: 0 }}
+                                            >
+                                                <option value="1">1x</option>
+                                                <option value="2">2x</option>
+                                                <option value="3">3x</option>
+                                                <option value="5">5x</option>
+                                                <option value="10">10x</option>
+                                            </select>
+                                        </div>
                                         <button 
-                                            onClick={handleStartSimulation} 
-                                            disabled={isLoadingData} 
+                                            onClick={() => setIsTradePanelVisible(false)} 
                                             style={{ 
-                                                flex: 1, 
-                                                height: '32px', 
-                                                background: isRunning ? 'var(--error-color)' : 'var(--success-color)', 
-                                                fontSize: '0.7rem', 
+                                                background: '#ef5350', 
+                                                color: 'white', 
+                                                border: 'none', 
+                                                borderRadius: '4px', 
+                                                padding: '2px 8px', 
+                                                fontSize: '0.6rem', 
                                                 fontWeight: 'bold',
-                                                marginTop: 0
+                                                cursor: 'pointer',
+                                                height: '32px'
                                             }}
                                         >
-                                            {isRunning ? 'PAUSE' : 'START'}
-                                        </button>
-                                        <select 
-                                            value={speed} 
-                                            onChange={(e) => setSpeed(Number(e.target.value))} 
-                                            style={{ width: '60px', height: '32px', fontSize: '0.7rem', padding: '0 5px', margin: 0 }}
-                                        >
-                                            <option value="1">1x</option>
-                                            <option value="2">2x</option>
-                                            <option value="3">3x</option>
-                                            <option value="5">5x</option>
-                                            <option value="10">10x</option>
-                                        </select>
-                                        <button onClick={() => setIsTradePanelVisible(false)} style={{ width: '32px', height: '32px', padding: 0, background: '#21262d', border: '1px solid #30363d', color: 'white', borderRadius: '4px', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
-                                            —
+                                            OCULTAR
                                         </button>
                                     </div>
 
