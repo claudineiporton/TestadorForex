@@ -289,7 +289,7 @@ button:hover {
 }
 
 /* Mobile Responsiveness & Modern Layout */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1024px), (max-height: 500px) {
   :root {
     --header-h: auto;
     --footer-h: 150px;
@@ -314,7 +314,7 @@ button:hover {
     flex-wrap: wrap;
     padding: 5px 10px;
     height: auto;
-    min-height: 50px;
+    min-height: 40px;
     gap: 2px;
   }
 
@@ -337,13 +337,13 @@ button:hover {
 
   .main-content {
     flex: 1;
-    height: 0; /* Important for flex-grow to work properly in column */
-    min-height: 300px;
+    height: 0;
+    min-height: 200px;
     border-bottom: 1px solid var(--border-color);
   }
 
   .sidebar {
-    display: none; /* Hide sidebar by default on mobile for better space */
+    display: none !important; /* Force hide sidebar on mobile devices */
   }
 
   .footer {
@@ -360,24 +360,29 @@ button:hover {
     bottom: auto !important;
     transform: scale(0.85);
     transform-origin: top right;
-    background: rgba(22, 27, 34, 0.9);
+    background: rgba(22, 27, 34, 0.95);
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    z-index: 999;
   }
 
-  /* Landscape Mode Optimization */
-  @media (orientation: landscape) {
+  /* Landscape Mode Optimization (Strict for small heights) */
+  @media (max-height: 500px) {
     .header {
-      display: none; /* Hide header in landscape to maximize chart */
+      display: none !important;
     }
     .footer {
-      height: 40px; /* Mini footer in landscape */
-      padding: 0 10px;
+      height: 35px;
+      padding: 0 5px;
+      overflow: hidden;
     }
     .mt5-one-click-panel {
-      transform: scale(0.7);
+      transform: scale(0.65);
       top: 2px !important;
       right: 2px !important;
+    }
+    .main-content {
+      min-height: auto;
     }
   }
 }
