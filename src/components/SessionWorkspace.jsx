@@ -451,68 +451,70 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                         isFollowEnabled={isFollowEnabled}
                     />
 
-                    {/* ONE-CLICK PANEL (FLOATING OVER CHART) */}
-                    <div className="mt5-one-click-panel">
-                        {/* Simulation Controls (Visible on mobile when header is hidden) */}
-                        <div className="mobile-only-sim-controls" style={{ display: 'flex', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #30363d' }}>
-                            <button 
-                                onClick={handleStartSimulation} 
-                                disabled={isLoadingData} 
-                                style={{ 
-                                    flex: 1, 
-                                    height: '32px', 
-                                    background: isRunning ? 'var(--error-color)' : 'var(--success-color)', 
-                                    fontSize: '0.7rem', 
-                                    fontWeight: 'bold',
-                                    marginTop: 0
-                                }}
-                            >
-                                {isRunning ? 'PAUSE' : 'START'}
-                            </button>
-                            <select 
-                                value={speed} 
-                                onChange={(e) => setSpeed(Number(e.target.value))} 
-                                style={{ width: '60px', height: '32px', fontSize: '0.7rem', padding: '0 5px', margin: 0 }}
-                            >
-                                <option value="1">1x</option>
-                                <option value="2">2x</option>
-                                <option value="3">3x</option>
-                                <option value="5">5x</option>
-                                <option value="10">10x</option>
-                            </select>
-                            <button onClick={onEndSession} style={{ width: '32px', height: '32px', padding: 0, background: '#21262d', border: '1px solid #30363d', color: 'white', borderRadius: '4px', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
-                                ×
-                            </button>
-                        </div>
+                    {/* ONE-CLICK PANEL (FLOATING OVER CHART - MOBILE INTEGRATED) */}
+                    {(activeBottomTab === 'Trade' || window.innerWidth > 1024) && (
+                        <div className="mt5-one-click-panel">
+                            {/* Simulation Controls (Visible when header is hidden) */}
+                            <div className="mobile-only-sim-controls" style={{ display: 'flex', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #30363d' }}>
+                                <button 
+                                    onClick={handleStartSimulation} 
+                                    disabled={isLoadingData} 
+                                    style={{ 
+                                        flex: 1, 
+                                        height: '32px', 
+                                        background: isRunning ? 'var(--error-color)' : 'var(--success-color)', 
+                                        fontSize: '0.7rem', 
+                                        fontWeight: 'bold',
+                                        marginTop: 0
+                                    }}
+                                >
+                                    {isRunning ? 'PAUSE' : 'START'}
+                                </button>
+                                <select 
+                                    value={speed} 
+                                    onChange={(e) => setSpeed(Number(e.target.value))} 
+                                    style={{ width: '60px', height: '32px', fontSize: '0.7rem', padding: '0 5px', margin: 0 }}
+                                >
+                                    <option value="1">1x</option>
+                                    <option value="2">2x</option>
+                                    <option value="3">3x</option>
+                                    <option value="5">5x</option>
+                                    <option value="10">10x</option>
+                                </select>
+                                <button onClick={onEndSession} style={{ width: '32px', height: '32px', padding: 0, background: '#21262d', border: '1px solid #30363d', color: 'white', borderRadius: '4px', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
+                                    ×
+                                </button>
+                            </div>
 
-                        <div style={{ display: 'flex', gap: '2px', width: '100%', marginBottom: '1px' }}>
-                            <div className="mt5-btn sell" onClick={() => {
-                                const targets = calculatePriceFromPoints('SELL', sl) || {};
-                                openPosition('SELL', lotSize, targets.sl, targets.tp);
-                            }}>
-                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>SELL</span>
-                                <span>{currentPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                            <div style={{ display: 'flex', gap: '2px', width: '100%', marginBottom: '1px' }}>
+                                <div className="mt5-btn sell" onClick={() => {
+                                    const targets = calculatePriceFromPoints('SELL', sl) || {};
+                                    openPosition('SELL', lotSize, targets.sl, targets.tp);
+                                }}>
+                                    <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>SELL</span>
+                                    <span>{currentPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                                </div>
+                                <input type="number" min="0" className="mt5-lot-selector" value={lotSize} step="0.01" onChange={(e) => setLotSize(Math.max(0, Number(e.target.value)))} onClick={(e) => e.stopPropagation()} />
+                                <div className="mt5-btn buy" onClick={() => {
+                                    const targets = calculatePriceFromPoints('BUY', sl) || {};
+                                    openPosition('BUY', lotSize, targets.sl, targets.tp);
+                                }}>
+                                    <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>BUY</span>
+                                    <span>{askPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                                </div>
                             </div>
-                            <input type="number" min="0" className="mt5-lot-selector" value={lotSize} step="0.01" onChange={(e) => setLotSize(Math.max(0, Number(e.target.value)))} onClick={(e) => e.stopPropagation()} />
-                            <div className="mt5-btn buy" onClick={() => {
-                                const targets = calculatePriceFromPoints('BUY', sl) || {};
-                                openPosition('BUY', lotSize, targets.sl, targets.tp);
-                            }}>
-                                <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>BUY</span>
-                                <span>{askPrice?.toFixed(symbolConfig?.digits || 5)}</span>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>SL (pts)</label>
+                                    <input type="number" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="0" style={{ height: '32px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>TP (pts)</label>
+                                    <input type="number" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="0" style={{ height: '32px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
+                                </div>
                             </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>SL (pts)</label>
-                                <input type="number" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="0" style={{ height: '32px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>TP (pts)</label>
-                                <input type="number" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="0" style={{ height: '32px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
-                            </div>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* TAB BAR FOR MULTIPLE CHARTS (MOVED TO BOTTOM) */}
