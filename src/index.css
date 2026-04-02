@@ -386,9 +386,11 @@ button:hover {
     }
     .mt5-one-click-panel {
       transform: scale(0.65);
-      top: 2px !important;
+      top: auto !important;
+      bottom: 40px !important; /* Just above the footer tabs on landscape */
       left: 2px !important;
       right: auto !important;
+      transform-origin: bottom left;
     }
     .main-content {
       min-height: auto;
