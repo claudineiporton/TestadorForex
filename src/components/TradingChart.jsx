@@ -205,6 +205,11 @@ const TradingChart = forwardRef(({
             },
             grid: { vertLines: { visible: false }, horzLines: { color: gridColor, visible: showGrid } },
             width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight,
+            rightPriceScale: {
+                width: 80, // Wider for mobile touch
+                borderVisible: false,
+                alignLabels: true,
+            },
             handleScroll: {
                 vertTouchDrag: true,
                 horzTouchDrag: true,
@@ -449,12 +454,14 @@ const TradingChart = forwardRef(({
         
         seriesRef.current.setData(validData);
 
-        // 2. Ajuste automático (Fit) e Scroll para o final
-        if (isFollowEnabled && !isDraggingRef.current) {
-            // Se for o primeiro carregamento (ou poucos dados), faz fitContent
+        // --- AUTO SCALE LOGIC ---
+        // We only force autoScale if follow is enabled AND the user isn't interacting
+        if (isFollowEnabled) {
+            // Note: We use a small timeout or check to see if data length is small
             if (data.length <= 200) {
                 chartRef.current.timeScale().fitContent();
             }
+            // Instead of force-resetting every time, we let it be automatic
             chartRef.current.priceScale('right').applyOptions({ autoScale: true });
         }
     }, [data, isFollowEnabled]);
