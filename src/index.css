@@ -288,6 +288,10 @@ button:hover {
   opacity: 0.9;
 }
 
+.mobile-only-sim-controls {
+  display: none !important;
+}
+
 /* Mobile Responsiveness & Modern Layout */
 @media screen and (max-width: 1024px), (max-height: 500px) {
   :root {
@@ -364,6 +368,10 @@ button:hover {
     backdrop-filter: blur(8px);
     box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     z-index: 999;
+  }
+
+  .mobile-only-sim-controls {
+    display: flex !important;
   }
 
   /* Landscape Mode Optimization (Strict for small heights) */

@@ -453,6 +453,38 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
 
                     {/* ONE-CLICK PANEL (FLOATING OVER CHART) */}
                     <div className="mt5-one-click-panel">
+                        {/* Simulation Controls (Visible on mobile when header is hidden) */}
+                        <div className="mobile-only-sim-controls" style={{ display: 'flex', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #30363d' }}>
+                            <button 
+                                onClick={handleStartSimulation} 
+                                disabled={isLoadingData} 
+                                style={{ 
+                                    flex: 1, 
+                                    height: '32px', 
+                                    background: isRunning ? 'var(--error-color)' : 'var(--success-color)', 
+                                    fontSize: '0.7rem', 
+                                    fontWeight: 'bold',
+                                    marginTop: 0
+                                }}
+                            >
+                                {isRunning ? 'PAUSE' : 'START'}
+                            </button>
+                            <select 
+                                value={speed} 
+                                onChange={(e) => setSpeed(Number(e.target.value))} 
+                                style={{ width: '60px', height: '32px', fontSize: '0.7rem', padding: '0 5px', margin: 0 }}
+                            >
+                                <option value="1">1x</option>
+                                <option value="2">2x</option>
+                                <option value="3">3x</option>
+                                <option value="5">5x</option>
+                                <option value="10">10x</option>
+                            </select>
+                            <button onClick={onEndSession} style={{ width: '32px', height: '32px', padding: 0, background: '#21262d', border: '1px solid #30363d', color: 'white', borderRadius: '4px', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}>
+                                ×
+                            </button>
+                        </div>
+
                         <div style={{ display: 'flex', gap: '2px', width: '100%', marginBottom: '1px' }}>
                             <div className="mt5-btn sell" onClick={() => {
                                 const targets = calculatePriceFromPoints('SELL', sl) || {};
@@ -473,11 +505,11 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                         <div style={{ display: 'flex', gap: '5px' }}>
                             <div style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>SL (pts)</label>
-                                <input type="number" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="0" style={{ height: '28px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
+                                <input type="number" value={sl} onChange={(e) => setSl(e.target.value)} placeholder="0" style={{ height: '32px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
                             </div>
                             <div style={{ flex: 1 }}>
                                 <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>TP (pts)</label>
-                                <input type="number" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="0" style={{ height: '28px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
+                                <input type="number" value={tp} onChange={(e) => setTp(e.target.value)} placeholder="0" style={{ height: '32px', fontSize: '0.8rem', padding: '2px 5px', textAlign: 'center' }} />
                             </div>
                         </div>
                     </div>
