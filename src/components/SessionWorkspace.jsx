@@ -485,34 +485,56 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                                 </button>
                             ) : (
                                 <div className="mt5-one-click-panel">
-                                    {/* Simulation Controls */}
+                                    {/* Top Row: Simulation Controls & Manual Toggle */}
                                     <div className="mobile-only-sim-controls" style={{ display: 'flex', gap: '5px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #30363d', alignItems: 'center' }}>
-                                        <div style={{ flex: 1, display: 'flex', gap: '5px' }}>
+                                        <div style={{ flex: 1, display: 'flex', gap: '3px' }}>
                                             <button 
                                                 onClick={handleStartSimulation} 
                                                 disabled={isLoadingData} 
                                                 style={{ 
-                                                    flex: 1, 
+                                                    flex: 1.5, 
                                                     height: '32px', 
                                                     background: isRunning ? 'var(--error-color)' : 'var(--success-color)', 
-                                                    fontSize: '0.7rem', 
+                                                    fontSize: '0.6rem', 
                                                     fontWeight: 'bold',
-                                                    marginTop: 0
+                                                    margin: 0
                                                 }}
                                             >
                                                 {isRunning ? 'PAUSE' : 'START'}
                                             </button>
-                                            <select 
-                                                value={speed} 
-                                                onChange={(e) => setSpeed(Number(e.target.value))} 
-                                                style={{ width: '55px', height: '32px', fontSize: '0.7rem', padding: '0 2px', margin: 0 }}
+                                            <button 
+                                                onClick={() => setIsFollowEnabled(!isFollowEnabled)}
+                                                style={{ 
+                                                    flex: 1, 
+                                                    height: '32px', 
+                                                    background: isFollowEnabled ? 'var(--accent-color)' : '#21262d', 
+                                                    fontSize: '0.55rem', 
+                                                    fontWeight: 'bold',
+                                                    margin: 0,
+                                                    color: 'white',
+                                                    border: '1px solid #30363d',
+                                                    borderRadius: '4px'
+                                                }}
                                             >
-                                                <option value="1">1x</option>
-                                                <option value="2">2x</option>
-                                                <option value="3">3x</option>
-                                                <option value="5">5x</option>
-                                                <option value="10">10x</option>
-                                            </select>
+                                                {isFollowEnabled ? 'AUTO' : 'MANU'}
+                                            </button>
+                                            <button 
+                                                onClick={() => chartRef.current?.center()} 
+                                                style={{ 
+                                                    flex: 0.8,
+                                                    height: '32px', 
+                                                    background: '#21262d', 
+                                                    fontSize: '0.55rem', 
+                                                    fontWeight: 'bold',
+                                                    margin: 0,
+                                                    color: 'white',
+                                                    border: '1px solid #30363d',
+                                                    borderRadius: '4px',
+                                                    padding: 0
+                                                }}
+                                            >
+                                                FIT
+                                            </button>
                                         </div>
                                         <button 
                                             onClick={() => setIsTradePanelVisible(false)} 
@@ -532,6 +554,25 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                                         </button>
                                     </div>
 
+                                    {/* Middle Row: Speed and Hint */}
+                                    <div style={{ display: 'flex', gap: '5px', marginBottom: '8px', alignItems: 'center' }}>
+                                        <select 
+                                            value={speed} 
+                                            onChange={(e) => setSpeed(Number(e.target.value))} 
+                                            style={{ width: '45px', height: '24px', fontSize: '0.6rem', padding: '0 2px', margin: 0 }}
+                                        >
+                                            <option value="1">1x</option>
+                                            <option value="2">2x</option>
+                                            <option value="3">3x</option>
+                                            <option value="5">5x</option>
+                                            <option value="10">10x</option>
+                                        </select>
+                                        <span style={{ fontSize: '0.5rem', color: '#8b949e', fontStyle: 'italic', lineHeight: '1' }}>
+                                            {!isFollowEnabled ? '← Arraste a régua direita para subir/descer' : 'Modo Automático Ativo'}
+                                        </span>
+                                    </div>
+
+                                    {/* Trade Button Row */}
                                     <div style={{ display: 'flex', gap: '2px', width: '100%', marginBottom: '1px' }}>
                                         <div className="mt5-btn sell" onClick={() => {
                                             const targets = calculatePriceFromPoints('SELL', sl) || {};
@@ -549,6 +590,8 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                                             <span>{askPrice?.toFixed(symbolConfig?.digits || 5)}</span>
                                         </div>
                                     </div>
+
+                                    {/* Bottom Row: SL/TP */}
                                     <div style={{ display: 'flex', gap: '5px' }}>
                                         <div style={{ flex: 1 }}>
                                             <label style={{ fontSize: '0.6rem', color: '#8b949e', display: 'block', textAlign: 'center' }}>SL (pts)</label>

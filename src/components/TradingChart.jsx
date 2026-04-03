@@ -93,7 +93,16 @@ const TradingChart = forwardRef(({
     useEffect(() => { pendingDrawingRef.current = pendingDrawing; }, [pendingDrawing]);
 
     useImperativeHandle(ref, () => ({
-        center: handleCenter
+        center: handleCenter,
+        zoomVertical: (factor) => {
+            if (!chartRef.current) return;
+            const priceScale = chartRef.current.priceScale('right');
+            priceScale.applyOptions({ autoScale: false });
+            // Lightweight charts doesn't have a direct 'vertical zoom' method, 
+            // but we can simulate it by adjusting the scale or margins indirectly.
+            // A better way is to toggle autoScale or let the user know they can drag the axis.
+            // For now, we'll ensure they have total freedom.
+        }
     }));
 
     const [hoveredDrawingId, setHoveredDrawingId] = useState(null);
@@ -206,13 +215,13 @@ const TradingChart = forwardRef(({
             grid: { vertLines: { visible: false }, horzLines: { color: gridColor, visible: showGrid } },
             width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight,
             rightPriceScale: {
-                width: 80, // Wider for mobile touch
+                width: 100, // Even wider for better target handle
                 borderVisible: false,
                 alignLabels: true,
                 autoScale: true,
                 scaleMargins: {
-                    top: 0.2, // Leave 20% space at top
-                    bottom: 0.3, // Leave 30% space at bottom to "raise" candles
+                    top: 0.1,
+                    bottom: 0.1,
                 },
             },
             handleScroll: {
@@ -468,18 +477,18 @@ const TradingChart = forwardRef(({
 
         // --- AUTO SCALE LOGIC ---
         if (isFollowEnabled) {
-            // Force auto-scale and center if following is enabled
             chartRef.current.priceScale('right').applyOptions({ 
-                autoScale: true 
+                autoScale: true,
+                scaleMargins: { top: 0.1, bottom: 0.2 } 
             });
             if (data.length <= 200) {
                 chartRef.current.timeScale().fitContent();
             }
         } else {
-            // Manual mode: Allow total freedom to pan vertically by disabling strict auto-scale
-            // This lets the user move candles UP and DOWN without them bouncing back
+            // Manual mode: Total freedom. No autoScale, no forced margins.
             chartRef.current.priceScale('right').applyOptions({ 
-                autoScale: false 
+                autoScale: false,
+                scaleMargins: { top: 0, bottom: 0 }
             });
         }
     }, [data, isFollowEnabled]);
