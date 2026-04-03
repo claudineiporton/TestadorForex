@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SYMBOLS } from '../engine/config';
-import './SessionManager.css'; // Let's use inline styles or a simple css if needed
+import { saveHistoricalData, clearHistoricalData } from '../engine/storage';
+import './SessionManager.css'; 
 
 export default function SessionManager({ onSelectSession, onClose }) {
     const [sessions, setSessions] = useState([]);
@@ -158,7 +159,6 @@ export default function SessionManager({ onSelectSession, onClose }) {
                                 <input type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #30363d', background: '#161b22', color: 'white' }} />
                             </div>
                         </div>
-
                         <div style={{ marginBottom: '20px' }}>
                             <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.85rem' }}>Pares de Moeda (Selecione 1 ou mais)</label>
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', maxHeight: '120px', overflowY: 'auto', padding: '10px', background: '#161b22', border: '1px solid #30363d', borderRadius: '4px' }}>
@@ -180,6 +180,82 @@ export default function SessionManager({ onSelectSession, onClose }) {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--accent-color)' }}>
+                                📥 Importar Dados Históricos (Opcional)
+                            </label>
+                            <p style={{ fontSize: '0.75rem', color: '#8b949e', marginBottom: '10px' }}>
+                                Use arquivos CSV (MT5/Yahoo) para carregar o histórico no celular.
+                            </p>
+                            <label style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: '10px',
+                                padding: '12px', 
+                                background: '#21262d', 
+                                border: '1px dashed #30363d', 
+                                borderRadius: '8px', 
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                color: 'white',
+                                transition: 'background 0.2s'
+                            }}>
+                                📁 Selecionar Arquivo CSV
+                                <input type="file" accept=".csv,text/csv,text/plain" onChange={async (e) => {
+                                    const file = e.target.files[0];
+                                    if (!file) return;
+                                    
+                                    const reader = new FileReader();
+                                    reader.onload = async (evt) => {
+                                        try {
+                                            const text = evt.target.result;
+                                            const lines = text.split('\n');
+                                            const parsedCandles = [];
+                                            const timeframe = 60; // default M1
+
+                                            // Determine target symbol automatically from filename
+                                            let targetSymbol = selectedPairs[0] || 'EURUSD';
+                                            const upperName = file.name.toUpperCase();
+                                            const foundSyms = Object.keys(SYMBOLS).filter(s => upperName.includes(s));
+                                            if (foundSyms.length > 0) targetSymbol = foundSyms[0];
+
+                                            for (let i = 1; i < lines.length; i++) {
+                                                const line = lines[i].trim();
+                                                if (!line) continue;
+                                                const parts = line.split(line.includes('\t') ? '\t' : ',');
+                                                if (parts.length >= 6) {
+                                                    // Simple parse logic for the manager
+                                                    const o = parseFloat(parts[2].replace(',', '.'));
+                                                    const h = parseFloat(parts[3].replace(',', '.'));
+                                                    const l = parseFloat(parts[4].replace(',', '.'));
+                                                    const c = parseFloat(parts[5].replace(',', '.'));
+                                                    if (!isNaN(o) && !isNaN(c)) {
+                                                        parsedCandles.push({
+                                                            time: Math.floor(new Date(`${parts[0].replace(/\./g, '-')}T${parts[1].length === 5 ? parts[1] + ':00' : parts[1]}Z`).getTime() / 1000),
+                                                            open: o, high: h, low: l, close: c, volume: parts.length >= 7 ? parseFloat(parts[6]) : 0
+                                                        });
+                                                    }
+                                                }
+                                            }
+
+                                            if (parsedCandles.length > 0) {
+                                                await clearHistoricalData(targetSymbol, timeframe);
+                                                await saveHistoricalData(targetSymbol, timeframe, parsedCandles);
+                                                alert(`Sucesso! ${parsedCandles.length} candles carregados para ${targetSymbol}.`);
+                                            } else {
+                                                alert("CSV inválido ou vazio.");
+                                            }
+                                        } catch (err) {
+                                            console.error(err);
+                                            alert("Erro ao ler CSV.");
+                                        }
+                                    };
+                                    reader.readAsText(file);
+                                }} style={{ display: 'none' }} />
+                            </label>
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
