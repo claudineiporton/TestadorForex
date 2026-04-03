@@ -215,13 +215,13 @@ const TradingChart = forwardRef(({
             grid: { vertLines: { visible: false }, horzLines: { color: gridColor, visible: showGrid } },
             width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight,
             rightPriceScale: {
-                width: 100, // Even wider for better target handle
+                width: 100, // Widest for mobile touch handle
                 borderVisible: false,
                 alignLabels: true,
                 autoScale: true,
                 scaleMargins: {
                     top: 0.1,
-                    bottom: 0.1,
+                    bottom: 0.45, // 45% Space at bottom to raise candles
                 },
             },
             handleScroll: {
@@ -479,7 +479,7 @@ const TradingChart = forwardRef(({
         if (isFollowEnabled) {
             chartRef.current.priceScale('right').applyOptions({ 
                 autoScale: true,
-                scaleMargins: { top: 0.1, bottom: 0.2 } 
+                scaleMargins: { top: 0.1, bottom: 0.35 } // 35% space at bottom even in AUTO
             });
             if (data.length <= 200) {
                 chartRef.current.timeScale().fitContent();
