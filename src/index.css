@@ -384,9 +384,7 @@ button:hover {
       display: none !important;
     }
     .footer {
-      height: 35px;
-      padding: 0 5px;
-      overflow: hidden;
+      display: none !important;
     }
     .mt5-one-click-panel {
       transform: scale(0.65);
