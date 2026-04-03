@@ -116,12 +116,19 @@ export const useForexEngine = (initialBalance = 0) => {
                     const p1 = Math.floor(yfStart.getTime() / 1000);
                     const p2 = Math.floor(dEnd.getTime() / 1000);
                     const yfSymbol = `${activeSymbol.toUpperCase()}=X`;
+                    const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yfSymbol}?period1=${p1}&period2=${p2}&interval=${interval}`;
+                    
+                    // In production (GitHub Pages), we need a CORS proxy. In dev, we use the Vite proxy.
+                    const finalUrl = import.meta.env.PROD 
+                        ? `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`
+                        : `/api/yahoo/v8/finance/chart/${yfSymbol}?period1=${p1}&period2=${p2}&interval=${interval}`;
 
-                    const url = `/api/yahoo/v8/finance/chart/${yfSymbol}?period1=${p1}&period2=${p2}&interval=${interval}`;
-                    const response = await fetch(url);
+                    const response = await fetch(finalUrl);
                     if (isCancelled) return;
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const json = await response.json();
+                    
+                    const resJson = await response.json();
+                    const json = import.meta.env.PROD ? JSON.parse(resJson.contents) : resJson;
 
                     const result = json.chart.result;
                     if (!result || !result[0].timestamp) {
