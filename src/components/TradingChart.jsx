@@ -407,8 +407,17 @@ const TradingChart = forwardRef(({
         const container = chartContainerRef.current;
         const onMouseDown = (e) => handleDown(e.clientX, e.clientY, e);
         const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
-        const onTouchStart = (e) => { if (e.touches.length) handleDown(e.touches[0].clientX, e.touches[0].clientY, e); };
-        const onTouchMove = (e) => { if (e.touches.length) { if (isDraggingRef.current) e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); } };
+        const onTouchStart = (e) => { 
+            if (e.touches.length) handleDown(e.touches[0].clientX, e.touches[0].clientY, e); 
+        };
+        const onTouchMove = (e) => { 
+            if (e.touches.length) { 
+                // Always prevent default on chart interaction to stop browser scroll/bounce
+                // This is CRITICAL for vertical panning on mobile
+                if (e.cancelable) e.preventDefault(); 
+                handleMove(e.touches[0].clientX, e.touches[0].clientY); 
+            } 
+        };
         
         container.addEventListener('mousedown', onMouseDown);
         window.addEventListener('mousemove', onMouseMove);
@@ -422,8 +431,6 @@ const TradingChart = forwardRef(({
             const { width, height } = entries[0].contentRect;
             if (width > 0 && height > 0) {
                 chartRef.current.applyOptions({ width, height });
-                // Ao redimensionar, garante que o preço se ajuste se necessário
-                chartRef.current.priceScale('right').applyOptions({ autoScale: true });
             }
         });
         
@@ -625,7 +632,7 @@ const TradingChart = forwardRef(({
     const handleCenter = () => { if (chartRef.current) { chartRef.current.timeScale().fitContent(); chartRef.current.priceScale('right').applyOptions({ autoScale: true }); } };
 
     return (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%', touchAction: 'none' }}>
             <div ref={chartContainerRef} style={{ width: '100%', height: '100%' }} />
             {activeTool && (
                 <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', background: 'var(--accent-color)', padding: '5px 15px', borderRadius: '20px', fontSize: '0.8rem', color: 'white', zIndex: 1000 }}>
