@@ -450,6 +450,17 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                         isFollowEnabled={isFollowEnabled}
                     />
 
+                    {/* FLOATING MOBILE TOOLS (ONLY VISIBLE IN LANDSCAPE) */}
+                    <div className="mobile-top-tools">
+                        <label className="mobile-tool-btn" title="Importar CSV">
+                            📥
+                            <input type="file" accept=".csv,text/csv,text/plain" onChange={handleImportCSV} style={{ display: 'none' }} />
+                        </label>
+                        <button className="mobile-tool-btn" onClick={onEndSession} title="Sair da Sessão" style={{ background: 'rgba(239, 83, 80, 0.8)' }}>
+                            🚪
+                        </button>
+                    </div>
+
                     {/* ONE-CLICK PANEL (TOGGLEABLE ON MOBILE) */}
                     {(activeBottomTab === 'Trade' || window.innerWidth > 1024) && (
                         <>
