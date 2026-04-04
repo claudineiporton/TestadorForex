@@ -204,7 +204,7 @@ export default function SessionManager({ onSelectSession, onClose }) {
                                 transition: 'background 0.2s'
                             }}>
                                 📁 Selecionar Arquivo CSV
-                                <input type="file" accept=".csv,text/csv,text/plain" onChange={async (e) => {
+                                <input type="file" accept=".csv, .txt, text/csv, text/plain, application/vnd.ms-excel, application/csv, text/comma-separated-values" onChange={async (e) => {
                                     const file = e.target.files[0];
                                     if (!file) return;
                                     
