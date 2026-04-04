@@ -451,55 +451,57 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                     />
 
                     {/* FLOATING MOBILE TOOLS (ONLY VISIBLE IN LANDSCAPE) */}
-                    <div className="mobile-top-tools">
-                        {/* Drawing Tools */}
-                        <button 
-                            className="mobile-tool-btn" 
-                            onClick={() => setActiveTool(activeTool === 'horizontal' ? null : 'horizontal')} 
-                            style={{ border: activeTool === 'horizontal' ? '2px solid var(--accent-color)' : '1px solid #30363d', background: activeTool === 'horizontal' ? 'rgba(88, 166, 255, 0.2)' : 'rgba(13, 17, 23, 0.9)' }}
-                            title="Linha Horizontal"
-                        >
-                            —
-                        </button>
-                        <button 
-                            className="mobile-tool-btn" 
-                            onClick={() => setActiveTool(activeTool === 'trend' ? null : 'trend')} 
-                            style={{ border: activeTool === 'trend' ? '2px solid var(--accent-color)' : '1px solid #30363d', background: activeTool === 'trend' ? 'rgba(88, 166, 255, 0.2)' : 'rgba(13, 17, 23, 0.9)' }}
-                            title="Linha de Tendência"
-                        >
-                            ╱
-                        </button>
-                        <button 
-                            className="mobile-tool-btn" 
-                            onClick={() => setActiveTool(activeTool === 'vertical' ? null : 'vertical')} 
-                            style={{ border: activeTool === 'vertical' ? '2px solid var(--accent-color)' : '1px solid #30363d', background: activeTool === 'vertical' ? 'rgba(88, 166, 255, 0.2)' : 'rgba(13, 17, 23, 0.9)' }}
-                            title="Linha Vertical"
-                        >
-                            |
-                        </button>
+                    {isTradePanelVisible && (
+                        <div className="mobile-top-tools">
+                            {/* Drawing Tools */}
+                            <button 
+                                className="mobile-tool-btn" 
+                                onClick={() => setActiveTool(activeTool === 'horizontal' ? null : 'horizontal')} 
+                                style={{ border: activeTool === 'horizontal' ? '2px solid var(--accent-color)' : '1px solid #30363d', background: activeTool === 'horizontal' ? 'rgba(88, 166, 255, 0.2)' : 'rgba(13, 17, 23, 0.9)' }}
+                                title="Linha Horizontal"
+                            >
+                                —
+                            </button>
+                            <button 
+                                className="mobile-tool-btn" 
+                                onClick={() => setActiveTool(activeTool === 'trend' ? null : 'trend')} 
+                                style={{ border: activeTool === 'trend' ? '2px solid var(--accent-color)' : '1px solid #30363d', background: activeTool === 'trend' ? 'rgba(88, 166, 255, 0.2)' : 'rgba(13, 17, 23, 0.9)' }}
+                                title="Linha de Tendência"
+                            >
+                                ╱
+                            </button>
+                            <button 
+                                className="mobile-tool-btn" 
+                                onClick={() => setActiveTool(activeTool === 'vertical' ? null : 'vertical')} 
+                                style={{ border: activeTool === 'vertical' ? '2px solid var(--accent-color)' : '1px solid #30363d', background: activeTool === 'vertical' ? 'rgba(88, 166, 255, 0.2)' : 'rgba(13, 17, 23, 0.9)' }}
+                                title="Linha Vertical"
+                            >
+                                |
+                            </button>
 
-                        <button 
-                            className="mobile-tool-btn" 
-                            onClick={() => setDrawings([])} 
-                            title="Limpar Desenhos"
-                        >
-                            🗑️
-                        </button>
+                            <button 
+                                className="mobile-tool-btn" 
+                                onClick={() => setDrawings([])} 
+                                title="Limpar Desenhos"
+                            >
+                                🗑️
+                            </button>
 
-                        <div style={{ width: '1px', height: '30px', background: '#30363d', margin: '0 5px' }}></div>
+                            <div style={{ width: '1px', height: '30px', background: '#30363d', margin: '0 5px' }}></div>
 
-                        {/* Existing Tools */}
-                        <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(300)} style={{ border: timeframe === 300 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>M5</button>
-                        <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(900)} style={{ border: timeframe === 900 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>M15</button>
-                        <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(14400)} style={{ border: timeframe === 14400 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>H4</button>
-                        <label className="mobile-tool-btn" title="Importar CSV">
-                            📥
-                            <input type="file" accept=".csv, .txt, text/csv, text/plain, application/vnd.ms-excel, application/csv, text/comma-separated-values" onChange={handleImportCSV} style={{ display: 'none' }} />
-                        </label>
-                        <button className="mobile-tool-btn" onClick={onEndSession} title="Sair da Sessão" style={{ background: 'rgba(239, 83, 80, 0.8)' }}>
-                            🚪
-                        </button>
-                    </div>
+                            {/* Existing Tools */}
+                            <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(300)} style={{ border: timeframe === 300 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>M5</button>
+                            <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(900)} style={{ border: timeframe === 900 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>M15</button>
+                            <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(14400)} style={{ border: timeframe === 14400 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>H4</button>
+                            <label className="mobile-tool-btn" title="Importar CSV">
+                                📥
+                                <input type="file" accept=".csv, .txt, text/csv, text/plain, application/vnd.ms-excel, application/csv, text/comma-separated-values" onChange={handleImportCSV} style={{ display: 'none' }} />
+                            </label>
+                            <button className="mobile-tool-btn" onClick={onEndSession} title="Sair da Sessão" style={{ background: 'rgba(239, 83, 80, 0.8)' }}>
+                                🚪
+                            </button>
+                        </div>
+                    )}
 
                     {/* ONE-CLICK PANEL (TOGGLEABLE ON MOBILE) */}
                     {(activeBottomTab === 'Trade' || window.innerWidth > 1024) && (
