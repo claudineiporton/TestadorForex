@@ -265,9 +265,6 @@ export const useSessionEngine = (sessionConfig, onSaveSession) => {
             }
         }
 
-        setSimulatedTime(targetTime);
-        currentIndexRef.current = nextIndex;
-
         const newBids = { ...bidPricesRef.current };
         const newAsks = { ...askPricesRef.current };
         const tickCheckData = []; // Data for SL/TP check
@@ -403,10 +400,10 @@ export const useSessionEngine = (sessionConfig, onSaveSession) => {
 
     useEffect(() => {
         if (isRunning) {
-            // Speed improvement: Reduce the damping effect of higher timeframes 
-            // and lower the minimum interval for a much faster simulation experience.
-            const timeframeFactor = Math.pow(timeframe / 60, 0.15); // Reduced from 0.3 to 0.15
-            const realTickInterval = Math.max(10, (1000 * timeframeFactor) / (speed * 2)); // Lowered min from 40 to 10, boosted speed
+            // Speed logic: timeframeFactor (power 0.3) helps scale the delay linearly for better UX.
+            // With Speed 1 at M1, realTickInterval will be approx 1000ms.
+            const timeframeFactor = Math.pow(timeframe / 60, 0.3); // Reverted from 0.15 to 0.3
+            const realTickInterval = Math.max(30, (1000 * timeframeFactor) / speed); // Removed * 2 multiplier and increased min to 30ms
             priceInterval.current = setInterval(tickSession, realTickInterval);
         } else {
             clearInterval(priceInterval.current);
