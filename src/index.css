@@ -411,14 +411,18 @@ button:hover {
   display: none;
   position: fixed;
   top: 10px;
-  right: 15px;
-  gap: 12px;
+  right: 10px; /* Reduced from 15px to save space */
+  gap: 6px;    /* Reduced from 12px to fit 5 buttons easily */
   z-index: 10000005;
+  flex-wrap: nowrap; /* Force all on one line */
+  align-items: center;
 }
 
 .mobile-tool-btn {
-  width: 44px;
-  height: 44px;
+  width: 42px; /* Slightly smaller (42 instead of 44) to fit better */
+  height: 42px;
+  min-width: 42px;
+  flex-shrink: 0; /* DON'T SHRINK! IMPORTANT! */
   background: rgba(13, 17, 23, 0.9);
   border: 1px solid #30363d;
   border-radius: 50%;
@@ -426,7 +430,7 @@ button:hover {
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(0,0,0,0.6);
   transition: all 0.2s;
