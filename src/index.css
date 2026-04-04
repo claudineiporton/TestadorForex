@@ -411,11 +411,13 @@ button:hover {
   display: none;
   position: fixed;
   top: 10px;
-  right: 10px; /* Reduced from 15px to save space */
-  gap: 6px;    /* Reduced from 12px to fit 5 buttons easily */
+  right: 10px;
+  gap: 6px;
   z-index: 10000005;
-  flex-wrap: nowrap; /* Force all on one line */
+  flex-wrap: wrap; /* Allow wrapping if there are many buttons */
+  justify-content: flex-end;
   align-items: center;
+  max-width: 80vw; /* Don't cover entire width */
 }
 
 .mobile-tool-btn {
