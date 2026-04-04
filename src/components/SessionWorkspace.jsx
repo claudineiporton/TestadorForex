@@ -452,6 +452,9 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
 
                     {/* FLOATING MOBILE TOOLS (ONLY VISIBLE IN LANDSCAPE) */}
                     <div className="mobile-top-tools">
+                        <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(300)} style={{ border: timeframe === 300 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>M5</button>
+                        <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(900)} style={{ border: timeframe === 900 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>M15</button>
+                        <button className="mobile-tool-btn tf-btn" onClick={() => setTimeframe(14400)} style={{ border: timeframe === 14400 ? '2px solid var(--accent-color)' : '1px solid #30363d', fontSize: '0.8rem', fontWeight: 'bold' }}>H4</button>
                         <label className="mobile-tool-btn" title="Importar CSV">
                             📥
                             <input type="file" accept=".csv, .txt, text/csv, text/plain, application/vnd.ms-excel, application/csv, text/comma-separated-values" onChange={handleImportCSV} style={{ display: 'none' }} />
