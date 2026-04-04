@@ -408,17 +408,30 @@ button:hover {
 
 /* Floating Mobile Top Tools (Landscape) */
 .mobile-top-tools {
-  display: none;
-  position: fixed;
-  bottom: 20px; /* Moved from top to bottom */
-  right: 15px;
-  gap: 6px;
-  z-index: 10000005;
-  flex-wrap: wrap; /* Allow wrapping if there are many buttons */
-  justify-content: flex-end;
-  align-items: center;
-  max-width: 80vw; /* Don't cover entire width */
+  display: none !important; /* Hidden by default, shown via media query + React state */
+  position: fixed !important;
+  bottom: 25px !important; /* More space from the bottom */
+  top: auto !important;    /* Explicitly remove top constraint */
+  right: 15px !important;
+  gap: 8px !important;
+  z-index: 9999999 !important; /* Ensure it stays on top */
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  max-width: 80vw !important;
+  background: rgba(13, 17, 23, 0.95) !important;
+  padding: 8px !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 4px 25px rgba(0,0,0,0.8) !important;
 }
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .mobile-top-tools {
+    display: flex !important;
+  }
+}
+
 
 .mobile-tool-btn {
   width: 42px; /* Slightly smaller (42 instead of 44) to fit better */

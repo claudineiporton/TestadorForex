@@ -267,11 +267,13 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
                 </div>
 
                 <div className="controls" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <div style={{ display: (window.innerWidth > 1024 || isTradePanelVisible) ? 'flex' : 'none', gap: '4px', background: '#21262d', padding: '2px 5px', borderRadius: '4px', border: '1px solid #30363d' }}>
-                        <button onClick={() => setActiveTool(activeTool === 'horizontal' ? null : 'horizontal')} style={{ background: activeTool === 'horizontal' ? 'var(--accent-color)' : 'transparent', width: '28px', padding: '2px 0', border: 'none', color: 'white', fontWeight: 'bold' }}>—</button>
-                        <button onClick={() => setActiveTool(activeTool === 'vertical' ? null : 'vertical')} style={{ background: activeTool === 'vertical' ? 'var(--accent-color)' : 'transparent', width: '28px', padding: '2px 0', border: 'none', color: 'white', fontWeight: 'bold' }}>|</button>
-                        <button onClick={() => setActiveTool(activeTool === 'trend' ? null : 'trend')} style={{ background: activeTool === 'trend' ? 'var(--accent-color)' : 'transparent', width: '28px', padding: '2px 0', border: 'none', color: 'white', fontWeight: 'bold' }}>╱</button>
-                    </div>
+                    {(window.innerWidth > 1024 || isTradePanelVisible) && (
+                        <div className="controls-group" style={{ display: 'flex', gap: '4px', background: '#21262d', padding: '2px 5px', borderRadius: '4px', border: '1px solid #30363d' }}>
+                            <button onClick={() => setActiveTool(activeTool === 'horizontal' ? null : 'horizontal')} style={{ background: activeTool === 'horizontal' ? 'var(--accent-color)' : 'transparent', width: '28px', padding: '2px 0', border: 'none', color: 'white', fontWeight: 'bold' }}>—</button>
+                            <button onClick={() => setActiveTool(activeTool === 'vertical' ? null : 'vertical')} style={{ background: activeTool === 'vertical' ? 'var(--accent-color)' : 'transparent', width: '28px', padding: '2px 0', border: 'none', color: 'white', fontWeight: 'bold' }}>|</button>
+                            <button onClick={() => setActiveTool(activeTool === 'trend' ? null : 'trend')} style={{ background: activeTool === 'trend' ? 'var(--accent-color)' : 'transparent', width: '28px', padding: '2px 0', border: 'none', color: 'white', fontWeight: 'bold' }}>╱</button>
+                        </div>
+                    )}
 
                     <div style={{ display: 'flex', gap: '4px', background: '#21262d', padding: '4px 6px', borderRadius: '4px', border: '1px solid #30363d' }}>
                         {colors.map(col => (
@@ -452,7 +454,7 @@ export default function SessionWorkspace({ sessionConfig, onSaveSession, onEndSe
 
                     {/* FLOATING MOBILE TOOLS (ONLY VISIBLE IN LANDSCAPE) */}
                     {isTradePanelVisible && (
-                        <div className="mobile-top-tools">
+                        <div className="mobile-top-tools landscape-only-flex">
                             {/* Drawing Tools */}
                             <button 
                                 className="mobile-tool-btn" 
